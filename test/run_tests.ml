@@ -1,7 +1,8 @@
 open OUnit
 
 let tests = "all denest tests" >:::
-  ["kd_tree.ml tests" >: Kd_tree_test.tests]
+  ["kd_tree.ml tests" >: Kd_tree_test.tests;
+   "mcmc.ml tests" >: Mcmc_test.tests]
 
 let _ = 
   let results = run_test_tt_main tests in 
