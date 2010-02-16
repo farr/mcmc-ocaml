@@ -50,7 +50,13 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
   let rec length_at_least n = function 
     | [] -> n = 0
     | _ :: xs -> 
-        (n = 0) || (length_at_least (n-1) xs)
+        (n <= 0) || (length_at_least (n-1) xs)
+
+  let rec depth = function 
+    | Kd.Empty -> 0
+    | Kd.Cell(_, _, _, left, right) -> 
+        1 + (max (depth left)
+               (depth right))
 
   let rec collect_subvolumes nmax = function 
     | Kd.Empty -> []
@@ -58,7 +64,7 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
         if not (length_at_least nmax objs) then 
           [c]
         else
-          (collect_subvolumes nmax left) @ (collect_subvolumes nmax right)
+          List.rev_append (collect_subvolumes nmax left) (collect_subvolumes nmax right)
 
   let evidence_harmonic_mean samples = 
     let l_inv = ref 0.0 and

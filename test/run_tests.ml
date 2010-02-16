@@ -6,6 +6,7 @@ let tests = "all denest tests" >:::
    "mcmc.ml tests" >: Mcmc_test.tests]
 
 let _ = 
+  Random.self_init ();
   let results = run_test_tt_main tests in 
   let nfail = 
     List.fold_left 

@@ -46,11 +46,25 @@ let rec acceptable_tree_p = function
          objs) && (acceptable_tree_p left) && (acceptable_tree_p right)
   | _ -> true
 
+let rec depth = function 
+  | Empty -> 0
+  | Cell(_,_,_,left,right) -> 
+      1 + (max (depth left)
+             (depth right))
+
 let test_tree_invariant () = 
   for i = 0 to 100 do 
     let t = random_tree 250 in 
       assert_bool "tree invariant violated" (acceptable_tree_p t)
   done
 
+let test_tree_depth () = 
+  let t = random_tree 1024 in 
+  let d = depth t in
+    assert_bool 
+      (Printf.sprintf "depth of 1024 points not near 10, instead %d" d)
+      ((9 <= d) && (d <= 11))
+
 let tests = "kd_tree.ml tests" >:::
-  ["tree invariant" >:: test_tree_invariant]
+  ["tree invariant" >:: test_tree_invariant;
+   "tree depth" >:: test_tree_depth]

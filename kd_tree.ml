@@ -61,18 +61,7 @@ module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
   let compare_all_coords o1 o2 = 
     let c1 = O.coord o1 and 
         c2 = O.coord o2 in 
-    let n1 = Array.length c1 and 
-        n2 = Array.length c2 in 
-    let c = Pervasives.compare n1 n2 in 
-      if c <> 0 then c else 
-        let rec loop i = 
-          if i = n1 then 0 else 
-            let x = c1.(i) and 
-                y = c2.(i) in 
-            let c = Pervasives.compare x y in 
-              if c <> 0 then c else
-                loop (i+1) in 
-          loop n1
+      Pervasives.compare c1 c2
 
   let compare_along_dimension dim o1 o2 = 
     let c1 : float array = O.coord o1 and 
@@ -109,7 +98,6 @@ module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
         let n = List.length objs in 
         let i = if n mod 2 = 0 then n/2 - 1 else n/2 in 
           find_nth_sorted compare objs i
-    
 
   let longest_dimension low high = 
     let dx_max = ref (-1.0/.0.0) and 
@@ -125,7 +113,7 @@ module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
 
   let rec tree_of_objects = function 
     | [] -> Empty
-    | o :: _ as objs when all_equal compare_all_coords objs -> 
+    | (o :: _) as objs when all_equal compare_all_coords objs -> 
         let low = Array.copy (O.coord o) in 
         Cell(objs, low, low, Empty, Empty)
     | objs -> 
@@ -146,6 +134,5 @@ module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
             vol := !vol *. (high.(i) -. low.(i))
           done;
           !vol
-          
 end
 
