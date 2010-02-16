@@ -36,3 +36,13 @@ let mcmc_array n log_likelihood log_prior jump_proposal log_jump_prob start =
       samples.(i) <- sample samples.(i-1)
     done;
     samples
+
+let remove_repeat_samples eql samps = 
+  let removed = ref [] in 
+    for i = Array.length samps - 1 downto 1 do 
+      if not (eql samps.(i).value samps.(i-1).value) then 
+        removed := samps.(i) :: !removed
+    done;
+    removed := samps.(0) :: !removed;
+    Array.of_list !removed
+    

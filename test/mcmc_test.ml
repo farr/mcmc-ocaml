@@ -95,7 +95,22 @@ let test_prior_like () =
     assert_equal_float ~msg:"means differ" ~epsrel:2e-1 ~epsabs:0.0 mu mean;
     assert_equal_float ~msg:"sigmas differ" ~epsrel:2e-1 ~epsabs:0.0 sigma std
 
+let test_remove_repeat () = 
+  let nsamp = 1000 and 
+      mu = Random.float 1.0 and 
+      sigma = Random.float 1.0 +. 1.0 in 
+  let propose x = x +. random_between (~-.sigma) sigma and 
+      prior x = 0.25 *. (log_gaussian mu sigma x) and 
+      like x = 0.75 *. (log_gaussian mu sigma x) and 
+      jump_prob x y = 0.0 in
+  let samples = mcmc_array nsamp like prior propose jump_prob mu in 
+  let no_repeats = remove_repeat_samples (=) samples in 
+    for i = 0 to Array.length no_repeats - 2 do 
+      assert_bool "repeated sample!" (no_repeats.(i).value <> no_repeats.(i+1).value)
+    done
+
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
    "gaussian posterior, left-biased jump proposal" >:: test_gaussian_post_left_biased_proposal;
-   "prior*like = gaussian, uniform jump" >:: test_prior_like]
+   "prior*like = gaussian, uniform jump" >:: test_prior_like;
+   "remove_repeat" >:: test_remove_repeat]
