@@ -66,21 +66,22 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
         else
           List.rev_append (collect_subvolumes nmax left) (collect_subvolumes nmax right)
 
-  let evidence_harmonic_mean samples = 
-    let l_inv = ref 0.0 and
-        n = Array.length samples in 
-      for i = 0 to n - 1 do 
-        let {Mcmc.like_prior = {Mcmc.log_likelihood = ll}} = samples.(i) in 
-        l_inv := !l_inv +. (exp (~-.ll))
-      done;
-      (float_of_int n)/.(!l_inv)
-
   let log_likelihood {Mcmc.like_prior = {Mcmc.log_likelihood = ll}} = ll
 
   let log_prior {Mcmc.like_prior = {Mcmc.log_prior = lp}} = lp
 
   let log_posterior s = (log_likelihood s) +. (log_prior s)
 
+  let compare_inverse_like s1 s2 = Pervasives.compare (~-.(log_likelihood s1)) (~-.(log_likelihood s2))
+
+  let evidence_harmonic_mean samples = 
+    let linv = ref 0.0 and 
+        n = Array.length samples in 
+      for i = 0 to n - 1 do 
+        linv := !linv +. 1.0/.(exp (log_likelihood samples.(i)))
+      done;
+      (float_of_int n)/.(!linv)
+          
   let median_sample (f : sample -> float) samples = 
     let n = List.length samples and 
         ssamp = 
@@ -107,6 +108,42 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
         0.0
         sub_vs
 
+  let collect_samples_up_to_eps eps samps = 
+    let rec collect_samples_loop collected_samples = function 
+      | [] -> List.rev collected_samples
+      | [x] -> List.rev (x :: collected_samples)
+      | x :: ((y :: _) as ys) -> 
+          let ilx = exp (~-.(log_likelihood x)) and 
+              ily = exp (~-.(log_likelihood y)) in 
+          let delta = ily -. ilx in 
+            assert(delta >= 0.0);
+            if delta > eps then 
+              List.rev (x :: collected_samples)
+            else
+              collect_samples_loop (x :: collected_samples) ys in 
+      collect_samples_loop [] samps
+
   let evidence_lebesque ?(n = 64) ?(eps = 0.1) samples = 
-    raise (Failure "evidence_lebesque: not implemented yet")
+    let samples = Array.to_list samples in 
+    let samps = collect_samples_up_to_eps eps (List.fast_sort compare_inverse_like samples) in 
+    let sub_vs = collect_subvolumes n (Kd.tree_of_objects samps) in 
+    let prior_mass = 
+      List.fold_left
+        (fun pm c -> 
+           match c with 
+             | Kd.Cell(objs, _, _, _, _) -> 
+                 let vol = Kd.volume c and 
+                     lp = median_sample log_prior objs in 
+                   pm +. vol*.(exp lp)
+             | _ -> raise (Failure "evidence_lebesque: bad cell in integral accumulation of prior mass"))
+        0.0
+        sub_vs and 
+        inv_l = 
+      List.fold_left
+        (fun inv_l samp -> inv_l +. (exp (~-.(log_likelihood samp))))
+        0.0 
+        samps and 
+        n = float_of_int (List.length samps) in 
+      n*.prior_mass/.inv_l
+    
 end
