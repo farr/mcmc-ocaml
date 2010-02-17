@@ -66,7 +66,17 @@ let test_evidence_harmonic_mean_2d () =
     (Mcmc.mcmc_array 100000 (log_multi_gaussian mu sigma) log_uniform_prior 
        (multi_gaussian_propose sigma) (fun _ _ -> 0.0) mu) in 
   let ev = Ev.evidence_harmonic_mean all_samples in 
-    assert_equal_float ~epsabs:0.5 ~msg:"evidence not 1 for gaussian posterior" 1.0 ev  
+    assert_equal_float ~epsabs:0.5 ~msg:"evidence not 1 for gaussian posterior" 1.0 ev
+
+let test_evidence_lebesgue_2d () = 
+  let mu = Array.init 2 (fun _ -> Random.float 1.0) and 
+      sigma = Array.init 2 (fun _ -> Random.float 0.1) in 
+  let all_samples = 
+    (Mcmc.mcmc_array 10000 (log_multi_gaussian mu sigma) log_uniform_prior 
+       (multi_gaussian_propose sigma) (fun _ _ -> 0.0) mu) in 
+  let ev = Ev.evidence_lebesgue ~eps:0.2 ~n:64 all_samples in 
+    assert_equal_float ~epsabs:0.5 ~msg:"evidence not 1 for gaussian posterior" 1.0 ev
 
 let tests = "evidence.ml tests" >:::
-  ["evidence_direct in 2D" >:: test_evidence_direct_2d]
+  ["evidence_direct in 2D" >:: test_evidence_direct_2d;
+   "evidence_lebesgue in 2D" >:: test_evidence_lebesgue_2d]

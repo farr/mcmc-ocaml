@@ -32,7 +32,8 @@ module type EVIDENCE = sig
   val evidence_harmonic_mean : sample array -> float
 
   (** Integrate evidence using Lebesque integral of 1/L *)
-  val evidence_lebesque : ?n : int -> ?eps : float -> sample array -> float
+  val evidence_lebesgue : ?n : int -> ?eps : float -> ?eql : (params -> params -> bool) -> 
+    sample array -> float
 end
 
 module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
@@ -123,10 +124,10 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
               collect_samples_loop (x :: collected_samples) ys in 
       collect_samples_loop [] samps
 
-  let evidence_lebesque ?(n = 64) ?(eps = 0.1) samples = 
+  let evidence_lebesgue ?(n = 64) ?(eps = 0.1) ?(eql = (=) ) samples = 
     let samples = Array.to_list samples in 
     let samps = collect_samples_up_to_eps eps (List.fast_sort compare_inverse_like samples) in 
-    let sub_vs = collect_subvolumes n (Kd.tree_of_objects samps) in 
+    let sub_vs = collect_subvolumes n (kd_tree_of_samples (Mcmc.remove_repeat_samples eql (Array.of_list samps))) in 
     let prior_mass = 
       List.fold_left
         (fun pm c -> 
