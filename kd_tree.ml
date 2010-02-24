@@ -36,6 +36,33 @@ module type KD_TREE = sig
   val volume : tree -> float
 end
 
+(** Output signature of the [Make_filling] functor.  The difference
+    between space-filling kD trees and ordinary kD trees is that the
+    filling kD trees (and their sub-cells) have bounds that exactly
+    partition a rectangular region of R^n; regular kD trees have
+    bounds that are as small as possible to enclose the objects
+    contained in them.  At every level in a space-filling kD tree, the
+    union of the cell volumes is equal to the total volume at the top
+    of the tree; a normal kD tree will be missing some volume at lower
+    levels because it shrinks the cell bounds down to the bounding box
+    for the objects in the cell. *)
+module type FILLING_KD_TREE = sig
+  (** Objects. *)
+  type o
+
+  (** Trees. *)
+  type tree = private 
+              | Cell of o list * float array * float array * tree * tree
+              | Empty
+
+(** Construct a tree with the given bounds.  All objects should be
+    in the range [\[low, high)].*)
+  val tree_of_objects : o list -> float array -> float array -> tree
+
+(** Tree volume. *)
+  val volume : tree -> float
+end
+
 module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
   type o = O.t
 
@@ -115,7 +142,7 @@ module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
     | [] -> Empty
     | (o :: _) as objs when all_equal compare_all_coords objs -> 
         let low = Array.copy (O.coord o) in 
-        Cell(objs, low, low, Empty, Empty)
+          Cell(objs, low, low, Empty, Empty)
     | objs -> 
         let (low,high) = bounds_of_objects objs in 
         let dim = longest_dimension low high in 
@@ -136,3 +163,77 @@ module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
           !vol
 end
 
+(** [Make_filling] is like [Make] except that the trees that it
+    produces fill a rectangular coordinate volume completely instead
+    of having bounds that exactly enclose a list of objects. *)
+module Make_filling(O : COORDINATE_OBJECT) : FILLING_KD_TREE with type o = O.t = struct
+  type o = O.t
+
+  type tree = 
+    | Cell of o list * float array * float array * tree * tree
+    | Empty
+
+  let sub_bounds dim low high = 
+    let new_low = Array.copy low and 
+        new_high = Array.copy high in 
+    let x_split = (low.(dim) +. high.(dim))*.0.5 in 
+      new_low.(dim) <- x_split;
+      new_high.(dim) <- x_split;
+      (new_low, new_high)
+
+  let in_bounds x low high = 
+    let n = Array.length x in 
+    let i = ref 0 and 
+        inb = ref true in 
+      while (!inb && !i <= n-1) do 
+        let x = x.(!i) in 
+          if x < low.(!i) || x >= high.(!i) then inb := false;
+          incr i
+      done;
+      !inb
+
+  let object_in_bounds o low high = in_bounds (O.coord o) low high
+
+  let longest_dimension low high = 
+    let dx = ref neg_infinity and 
+        dim = ref (-1) in
+      for i = 0 to Array.length low - 1 do 
+        let dxi = high.(i) -. low.(i) in 
+          if dxi > !dx then begin
+            dx := dxi;
+            dim := i
+          end
+      done;
+      !dim
+
+  let all_equal = function 
+    | [] -> true
+    | [x] -> true
+    | x :: xs -> 
+        let xc = O.coord x in 
+          List.for_all (fun y -> Pervasives.compare xc (O.coord y) = 0) xs
+
+  let rec tree_of_objects objs low high = 
+    match objs with 
+      | [] -> Empty
+      | objs when all_equal objs -> 
+          Cell(objs, low, high, Empty, Empty)
+      | objs -> 
+          let dim = longest_dimension low high in 
+          let (new_low, new_high) = sub_bounds dim low high in 
+          let (left, right) = 
+            List.partition (fun obj -> object_in_bounds obj low new_high) objs in 
+            Cell(objs, low, high,
+                 tree_of_objects left low new_high,
+                 tree_of_objects right new_low high)
+
+  let volume = function 
+    | Empty -> 0.0
+    | Cell(_, low, high, _, _) -> 
+        let vol = ref 1.0 in 
+          for i = 0 to Array.length low - 1 do 
+            let dx = high.(i) -. low.(i) in 
+              vol := !vol *. dx
+          done;
+          !vol +. 0.0
+end
