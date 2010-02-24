@@ -59,8 +59,15 @@ module type FILLING_KD_TREE = sig
     in the range [\[low, high)].*)
   val tree_of_objects : o list -> float array -> float array -> tree
 
-(** Tree volume. *)
+  (** Tree volume. *)
   val volume : tree -> float
+
+  (** Is the given object contained within the volume of the tree? *)
+  val in_tree : o -> tree -> bool
+
+  (** [in_bounds x low high] tests whether [x] is in the range
+      \[[low], [high]). *)
+  val in_bounds : float array -> float array -> float array -> bool
 end
 
 module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
@@ -193,6 +200,11 @@ module Make_filling(O : COORDINATE_OBJECT) : FILLING_KD_TREE with type o = O.t =
       !inb
 
   let object_in_bounds o low high = in_bounds (O.coord o) low high
+
+  let in_tree o = function 
+    | Empty -> false
+    | Cell(_, low, high, _, _) -> 
+        object_in_bounds o low high
 
   let longest_dimension low high = 
     let dx = ref neg_infinity and 
