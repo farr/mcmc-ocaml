@@ -232,8 +232,6 @@ module Make_filling(O : COORDINATE_OBJECT) : FILLING_KD_TREE with type o = O.t =
     match objs with 
       | [] -> Empty(low, high)
       | objs when all_equal objs -> 
-          let dim = longest_dimension low high in 
-          let (new_low, new_high) = sub_bounds dim low high in 
           Cell(objs, low, high, Null, Null)
       | objs -> 
           let dim = longest_dimension low high in 
