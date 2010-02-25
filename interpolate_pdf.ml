@@ -1,5 +1,5 @@
 (** Code that uses a kD tree to construct a piecewise-constant PDF
-    from a list of samples (presumable from an MCMC). *)
+    from an array of samples (presumably from an MCMC). *)
 
 (** Abstract probability space that can map to and from R^n. *)
 module type PROB_SPACE = sig
@@ -24,7 +24,7 @@ module type INTERPOLATE_PDF = sig
   (** Construct an interpolating PDF from the given list of samples
       (with the given bounds on the coordinates for the probability
       space). *)
-  val make : point list -> float array -> float array -> interp_pdf
+  val make : point array -> float array -> float array -> interp_pdf
 
   (** Draw a point from the interpolated PDF. *)
   val draw : interp_pdf -> point
@@ -46,57 +46,69 @@ module Make(S : PROB_SPACE) : INTERPOLATE_PDF with type point = S.point = struct
       let coord = S.coord
     end)
 
-  (** Stores an array of the points and also the necessary tree structure. *)
   type interp_pdf = point array * Kdt.tree
 
   let random_between a b = 
     a +. (b-.a)*.(Random.float 1.0)
 
-  let make samps low high = 
-    (Array.of_list samps, 
-     Kdt.tree_of_objects samps low high)
+  let random_in_volume low high = 
+    let n = Array.length low in 
+    let x = Array.make n 0.0 in 
+      for i = 0 to n - 1 do 
+        x.(i) <- random_between low.(i) high.(i)
+      done;
+      x
 
-  let rec find_cell samp = function 
-    | Kdt.Empty -> raise (Failure "find_cell: couldn't find")
-    | Kdt.Cell(_,_,_,Kdt.Empty,Kdt.Empty) as c -> c
-    | Kdt.Cell(_,low,high,left,right) -> 
-        if Kdt.in_tree samp left then 
-          find_cell samp left
+  let center_pt low high = 
+    let n = Array.length low in 
+    let x = Array.make n 0.0 in 
+      for i = 0 to n - 1 do 
+        x.(i) <- 0.5*.(low.(i) +. high.(i))
+      done;
+      x
+
+  let rec collect_extra_points = function 
+    | Kdt.Null -> []
+    | Kdt.Empty(low, high) -> [S.point (center_pt low high)]
+    | Kdt.Cell(_,_,_,left,right) -> 
+        List.rev_append (collect_extra_points left) (collect_extra_points right)
+
+  let make pts low high = 
+    let lpts = Array.to_list pts in 
+    let tree = Kdt.tree_of_objects lpts low high in 
+      (Array.of_list (List.rev_append (collect_extra_points tree) lpts),
+       tree)
+
+  let rec find_tree pt = function 
+    | Kdt.Null -> raise (Failure "find_volume: internal error")
+    | Kdt.Empty(_, _) as t -> t
+    | Kdt.Cell(_,_,_,Kdt.Null,Kdt.Null) as t -> 
+        t
+    | Kdt.Cell(_,_,_,left,right) -> 
+        if Kdt.in_tree_volume pt left then 
+          find_tree pt left
         else
-          find_cell samp right
+          find_tree pt right
 
-  let draw (samps, tree) = 
-    let samp = samps.(Random.int (Array.length samps)) in 
-      match find_cell samp tree with 
-        | Kdt.Empty -> raise (Failure "draw: internal error")
-        | Kdt.Cell(_, low, high, _, _) -> 
-            let coord = Array.copy low in 
-              for i = 0 to Array.length low - 1 do 
-                coord.(i) <- random_between low.(i) high.(i)
-              done;
-              S.point coord
+  let find_volume pt tree = 
+    match find_tree pt tree with 
+      | Kdt.Empty(low,high) -> (low,high)
+      | Kdt.Cell(_,low,high,_,_) -> (low,high)
+      | _ -> raise (Failure "find_volume: internal error")
 
-  let pt_in_tree pt = function 
-    | Kdt.Cell(_, low, high, _, _) when Kdt.in_bounds pt low high -> true
-    | _ -> false
+  let draw (pts, tree) = 
+    let n = Array.length pts in 
+    let pt = pts.(Random.int n) in 
+    let (low,high) = find_volume pt tree in 
+      S.point (random_in_volume low high)
 
-  let rec find_cell_pt pt = function 
-    | Kdt.Empty -> raise (Failure "find_cell_pt: internal error")
-    | Kdt.Cell(_, _, _, Kdt.Empty, Kdt.Empty) as c -> c
-    | Kdt.Cell(_, _, _, left, right) -> 
-        if pt_in_tree pt left then 
-          find_cell_pt pt left
-        else
-          find_cell_pt pt right
-
-  let jump_prob (samps, tree) _ pt = 
-    let pt = S.coord pt in 
-    let nf = float_of_int (Array.length samps) in 
-      match find_cell_pt pt tree with 
-        | Kdt.Empty -> raise (Failure "jump_prob: internal error")
-        | Kdt.Cell(samps, _, _, _, _) as c -> 
-            let v = Kdt.volume c and 
-                ns = float_of_int (List.length samps) in 
-              ns/.nf/.v
+  let jump_prob (pts, tree) _ pt = 
+    let n = Array.length pts in 
+    let nf = float_of_int n in 
+      match find_tree pt tree with 
+        | Kdt.Empty(_,_) as t -> 1.0 /. nf /. (Kdt.volume t)
+        | Kdt.Cell(objs, _, _, _, _) as t -> 
+            (float_of_int (List.length objs)) /. nf /. (Kdt.volume t)
+        | _ -> raise (Failure "jump_prob: internal error")
 
 end

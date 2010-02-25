@@ -53,7 +53,8 @@ module type FILLING_KD_TREE = sig
   (** Trees. *)
   type tree = private 
               | Cell of o list * float array * float array * tree * tree
-              | Empty
+              | Empty of float array * float array (** Empty cell, but finite volume. *)
+              | Null (** Empty cell of zero volume. *)
 
 (** Construct a tree with the given bounds.  All objects should be
     in the range [\[low, high)].*)
@@ -63,7 +64,7 @@ module type FILLING_KD_TREE = sig
   val volume : tree -> float
 
   (** Is the given object contained within the volume of the tree? *)
-  val in_tree : o -> tree -> bool
+  val in_tree_volume : o -> tree -> bool
 
   (** [in_bounds x low high] tests whether [x] is in the range
       \[[low], [high]). *)
@@ -178,7 +179,8 @@ module Make_filling(O : COORDINATE_OBJECT) : FILLING_KD_TREE with type o = O.t =
 
   type tree = 
     | Cell of o list * float array * float array * tree * tree
-    | Empty
+    | Empty of float array * float array
+    | Null
 
   let sub_bounds dim low high = 
     let new_low = Array.copy low and 
@@ -201,10 +203,11 @@ module Make_filling(O : COORDINATE_OBJECT) : FILLING_KD_TREE with type o = O.t =
 
   let object_in_bounds o low high = in_bounds (O.coord o) low high
 
-  let in_tree o = function 
-    | Empty -> false
+  let in_tree_volume o = function 
     | Cell(_, low, high, _, _) -> 
         object_in_bounds o low high
+    | Empty(low,high) -> object_in_bounds o low high
+    | Null -> false
 
   let longest_dimension low high = 
     let dx = ref neg_infinity and 
@@ -227,9 +230,11 @@ module Make_filling(O : COORDINATE_OBJECT) : FILLING_KD_TREE with type o = O.t =
 
   let rec tree_of_objects objs low high = 
     match objs with 
-      | [] -> Empty
+      | [] -> Empty(low, high)
       | objs when all_equal objs -> 
-          Cell(objs, low, high, Empty, Empty)
+          let dim = longest_dimension low high in 
+          let (new_low, new_high) = sub_bounds dim low high in 
+          Cell(objs, low, high, Null, Null)
       | objs -> 
           let dim = longest_dimension low high in 
           let (new_low, new_high) = sub_bounds dim low high in 
@@ -239,13 +244,16 @@ module Make_filling(O : COORDINATE_OBJECT) : FILLING_KD_TREE with type o = O.t =
                  tree_of_objects left low new_high,
                  tree_of_objects right new_low high)
 
+  let vol low high = 
+    let vol = ref 1.0 in 
+      for i = 0 to Array.length low - 1 do 
+        let dx = high.(i) -. low.(i) in 
+          vol := !vol *. dx
+      done;
+      !vol +. 0.0
+
   let volume = function 
-    | Empty -> 0.0
-    | Cell(_, low, high, _, _) -> 
-        let vol = ref 1.0 in 
-          for i = 0 to Array.length low - 1 do 
-            let dx = high.(i) -. low.(i) in 
-              vol := !vol *. dx
-          done;
-          !vol +. 0.0
+    | Empty(low, high) -> vol low high
+    | Null -> 0.0
+    | Cell(_, low, high, _, _) -> vol low high      
 end

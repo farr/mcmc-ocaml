@@ -68,20 +68,16 @@ let rec acceptable_tree_p = function
   | _ -> true
 
 let rec acceptable_filling_tree_p = function 
-  | Kdt_fill.Empty -> true
+  | Kdt_fill.Empty(_,_) -> true
+  | Kdt_fill.Null -> true
   | Kdt_fill.Cell(_, _, _,
-         Kdt_fill.Empty, Kdt_fill.Empty) -> true
-  | Kdt_fill.Cell(objs, _, _, 
-                  (Kdt_fill.Cell(_, llow, lhigh, _, _) as left), 
-                  (Kdt_fill.Cell(_, hlow, hhigh, _, _) as right)) -> 
+         Kdt_fill.Null, Kdt_fill.Null) -> true
+  | Kdt_fill.Cell(objs, _, _, left, right) as t -> 
       (List.for_all
-         (fun obj ->
-            let in_low = strict_in_bounds_p obj llow lhigh and 
-                in_high = strict_in_bounds_p obj hlow hhigh in 
-              (in_low || in_high) &&
-                (not (in_low && in_high)))
-         objs) && (acceptable_filling_tree_p left) && (acceptable_filling_tree_p right)
-  | _ -> true
+         (fun obj -> Kdt_fill.in_tree_volume obj t)
+         objs) &&
+        (acceptable_filling_tree_p left) &&
+        (acceptable_filling_tree_p right)
 
 let rec depth = function 
   | Empty -> 0
