@@ -1,5 +1,5 @@
 <test> or <bin> : include
 
-<bin/*.{ml,mli,native,byte}> : use_denest
+<bin/*.{ml,mli,native,byte}> : use_mcmc
 
-<test/*.{ml,mli,native,byte}> : use_unix, use_oUnit, use_denest
+<test/*.{ml,mli,native,byte}> : use_unix, use_oUnit, use_mcmc
