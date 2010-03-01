@@ -4,7 +4,8 @@ let tests = "all denest tests" >:::
   ["evidence.ml tests" >: Evidence_test.tests;
    "interpolate_pdf.ml tests" >: Interpolate_pdf_test.tests;
    "kd_tree.ml tests" >: Kd_tree_test.tests;
-   "mcmc.ml tests" >: Mcmc_test.tests]
+   "mcmc.ml tests" >: Mcmc_test.tests;
+   "stats.ml tests" >: Stats_test.tests]
 
 let _ = 
   Random.self_init ();
