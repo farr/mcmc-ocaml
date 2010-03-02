@@ -45,3 +45,65 @@ let remove_repeat_samples eql samps =
     done;
     removed := samps.(0) :: !removed;
     Array.of_list !removed
+
+type ('a, 'b) rjmcmc_value = 
+  | A of 'a
+  | B of 'b
+
+type ('a, 'b) rjmcmc_sample = ('a, 'b) rjmcmc_value mcmc_sample
+
+let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) (ljpintoa, ljpintob) (pa,pb) = 
+  let jump_proposal = function 
+    | A(a) -> 
+        if Random.float 1.0 < pa then 
+          A(jpa a)
+        else
+          B(jintob ())
+    | B(b) -> 
+        if Random.float 1.0 < pb then 
+          B(jpb b)
+        else
+          A(jintoa ()) and 
+      log_jump_prob x y = 
+    match x,y with 
+      | A(a), A(a') -> 
+          ljpa a a'
+      | A(a), B(b) -> 
+          (log pb) +. ljpintob b
+      | B(b), A(a) -> 
+          (log pa) +. ljpintoa a
+      | B(b), B(b') -> 
+          ljpb b b' and 
+      log_like = function 
+        | A(a) -> lla a
+        | B(b) -> llb b and 
+      log_prior = function 
+        | A(a) -> (log pa) +. lpa a
+        | B(b) -> (log pb) +. lpb b in 
+    make_mcmc_sampler log_like log_prior jump_proposal log_jump_prob
+
+let rjmcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) 
+    (ljpintoa, ljpintob) (pa,pb) (a,b) = 
+  let is_a = Random.float 1.0 < pa in 
+  let next_state = 
+    make_rjmcmc_sampler (lla,llb) (lpa,lpb) (jpa,jpb) (ljpa,ljpb) (jintoa,jintob) (ljpintoa, ljpintob) (pa,pb) in 
+  let value = if is_a then A(a) else B(b) and 
+      log_like = if is_a then lla a else llb b and 
+      log_prior = if is_a then lpa a +. (log pa) else lpb b +. (log pb) in 
+  let states = Array.make n 
+    {value = value; like_prior = {log_likelihood = log_like; log_prior = log_prior}} in 
+    for i = 1 to n - 1 do 
+      let last = states.(i-1) in 
+        states.(i) <- next_state last
+    done;
+    states
+
+let rjmcmc_model_counts data = 
+  let na = ref 0 and 
+      nb = ref 0 in 
+    for i = 0 to Array.length data - 1 do 
+      match data.(i).value with 
+        | A(_) -> incr na
+        | B(_) -> incr nb
+    done;
+    (!na, !nb)

@@ -52,3 +52,91 @@ val mcmc_array : int -> ('a -> float) -> ('a -> float) ->
     repeated samples from the chain. *)
 val remove_repeat_samples : ('a -> 'a -> bool) -> ('a mcmc_sample) array -> 
   ('a mcmc_sample) array
+
+(** Values from a reverse-jump mcmc between two parameter spaces, of
+    type ['a] and ['b] respectively. *)
+type ('a, 'b) rjmcmc_value = 
+  | A of 'a 
+  | B of 'b
+
+(** Samples from a reverse-jump mcmc between two parameter spaces, of
+    type ['a] and ['b], respectively. *)
+type ('a, 'b) rjmcmc_sample = ('a, 'b) rjmcmc_value mcmc_sample
+
+(** [make_rjmcmc_sampler log_likelihoods log_priors
+    internal_jump_proposals log_internal_jump_probabilities
+    transition_jump_proposals log_transition_jump_probabilities
+    model_priors] produces a reverse-jump MCMC sampling function.  The
+    arguments to [make_rjmcmc_sampler] are as follows: 
+
+    - [log_likelihoods] is a pair of functions that computes the log
+      of the likelihood of parameters in each model.
+
+    - [log_priors] is a pair of functions that computes the log of the
+      priors in each model.
+
+    - [internal_jump_proposals] is a pair of functions that propose
+      jumps {b within} each model.
+
+    - [log_internal_jump_probabilities] is a pair of functions that
+      compute the probability of an internal jump between the first
+      and second given state in each model.
+
+    - [transition_jump_proposals] is a pair of functions that each
+      produce a proposed jump into the {b opposite} model.  For now,
+      we assume that the models are totally separate (i.e. that one is
+      not a superset of the other), so the proposal does not depend on
+      the current state (in the other model).  This is the most likely
+      property of [make_rjmcmc_sampler] to change. 
+
+    - [log_transition_jump_probabilities] is a pair of functions that
+      return the log of the probability to propose a transition jump
+      to the given state. 
+
+    - [model_priors] are the priors on the models under consideration
+      (note that these two numbers should sum to [1.0]).
+
+    The [log_likelihoods], [log_priors], [internal_jump_proposals],
+    and [log_internal_jump_probabilities] procedures are exactly the
+    same as the corresponding functions for a single parameter-space
+    MCMC. 
+
+    The produced MCMC sample procedure will propose jumps between
+    models with probability proportional to the corresponding model
+    prior.
+*)
+val make_rjmcmc_sampler : 
+  ('a -> float) * ('b -> float) -> 
+  ('a -> float) * ('b -> float) -> 
+  ('a -> 'a) * ('b -> 'b) -> 
+  ('a -> 'a -> float) * ('b -> 'b -> float) -> 
+  (unit -> 'a) * (unit -> 'b) -> 
+  ('a -> float) * ('b -> float) -> 
+  float * float -> 
+  ('a, 'b) rjmcmc_sample -> ('a, 'b) rjmcmc_sample
+
+(** [rjmcmc_array n log_likelihoods log_priors internal_jump_proposals
+    log_internal_jump_probabilities transition_jump_proposals
+    log_transition_jump_probabilities model_priors initial_states]
+    produces an array of reverse-jump MCMC samples from the posterior
+    of the two-parameter-space model described by its arguments,
+    beginning with one of the [initial_states] (which one is chosen
+    randomly according to the model priors).  See
+    {!Mcmc.make_rjmcmc_sampler} for a description of the arguments. *)
+val rjmcmc_array : 
+  int -> 
+  ('a -> float) * ('b -> float) -> 
+  ('a -> float) * ('b -> float) -> 
+  ('a -> 'a) * ('b -> 'b) -> 
+  ('a -> 'a -> float) * ('b -> 'b -> float) -> 
+  (unit -> 'a) * (unit -> 'b) -> 
+  ('a -> float) * ('b -> float) -> 
+  float * float -> 
+  'a * 'b -> ('a, 'b) rjmcmc_sample array 
+
+(** [rjmcmc_model_counts samples] computes the number of times
+    parameters from the two models in a reverse-jump MCMC appear in
+    the sequence of samples.  The first number returned is the number
+    of times [A(_)] appears in [samples]; the second is the number of
+    times [B(_)] appears. *)
+val rjmcmc_model_counts : ('a, 'b) rjmcmc_sample array -> (int * int)

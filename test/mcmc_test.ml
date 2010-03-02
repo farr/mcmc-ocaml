@@ -109,8 +109,43 @@ let test_remove_repeat () =
       assert_bool "repeated sample!" (no_repeats.(i).value <> no_repeats.(i+1).value)
     done
 
+let test_rjmcmc_gaussians () = 
+  let nsamp = 1000000 and 
+      mu1 = Random.float 1.0 and 
+      sigma1 = Random.float 1.0 and 
+      mu2 = Random.float 1.0 and 
+      sigma2 = Random.float 1.0 in
+  let propose1 x = Stats.draw_gaussian mu1 sigma1 and 
+      propose2 x = Stats.draw_gaussian mu2 sigma2 and 
+      propose_into1 () = Stats.draw_gaussian mu1 sigma1 and 
+      propose_into2 () = Stats.draw_gaussian mu2 sigma2 in 
+  let log_jump1 _ y = Stats.log_gaussian mu1 sigma1 y and 
+      log_jump2 _ y = Stats.log_gaussian mu2 sigma2 y and 
+      log_jump_into1 x = Stats.log_gaussian mu1 sigma1 x and 
+      log_jump_into2 x = Stats.log_gaussian mu2 sigma2 x in 
+  let log_like1 x = 0.5 *. (log_gaussian mu1 sigma1 x) and 
+      log_like2 x = 0.3 *. (log_gaussian mu2 sigma2 x) and 
+      log_prior1 x = 0.5 *. (log_gaussian mu1 sigma1 x) and 
+      log_prior2 x = 0.7 *. (log_gaussian mu2 sigma2 x) in 
+  let p1 = 0.5 and p2 = 0.5 in 
+  let samples = rjmcmc_array nsamp
+    (log_like1,log_like2)
+    (log_prior1,log_prior2)
+    (propose1,propose2)
+    (log_jump1,log_jump2)
+    (propose_into1,propose_into2)
+    (log_jump_into1,log_jump_into2)
+    (p1,p2)
+    (mu1, mu2) in 
+  let (n1, n2) = rjmcmc_model_counts samples in 
+  let p1 = (float_of_int n1) /. (float_of_int (n1+n2)) and 
+      p2 = (float_of_int n2) /. (float_of_int (n1+n2)) in 
+    assert_equal_float ~epsrel:0.1 0.5 p1;
+    assert_equal_float ~epsrel:0.1 0.5 p2
+
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
    "gaussian posterior, left-biased jump proposal" >:: test_gaussian_post_left_biased_proposal;
    "prior*like = gaussian, uniform jump" >:: test_prior_like;
-   "remove_repeat" >:: test_remove_repeat]
+   "remove_repeat" >:: test_remove_repeat;
+   "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians]
