@@ -37,10 +37,19 @@ let test_gaussian_random () =
     assert_equal_float ~epsabs:0.1 mu mean;
     assert_equal_float ~epsabs:0.1 sigma std
 
+let test_multi_mean () = 
+  let xs = [|[|0.0; 1.0|];
+             [|2.0; 3.0|];
+             [|4.0; -5.0|]|] in 
+  let mu = multi_mean xs in 
+    assert_equal_float 2.0 mu.(0);
+    assert_equal_float (-1.0/.3.0) mu.(1)
+
 let tests = "stats.ml tests" >:::
   ["mean" >:: test_mean;
    "randomized mean" >:: test_mean_random;
    "std" >:: test_std;
    "randomized std" >:: test_std_random;
    "gaussian dist" >:: test_gaussian;
-   "randomized gaussian draws" >:: test_gaussian_random]
+   "randomized gaussian draws" >:: test_gaussian_random;
+   "multi_mean" >:: test_multi_mean]

@@ -83,18 +83,18 @@ type ('a, 'b) rjmcmc_sample = ('a, 'b) rjmcmc_value mcmc_sample
       and second given state in each model.
 
     - [transition_jump_proposals] is a pair of functions that each
-      produce a proposed jump into the {b opposite} model.  For now,
-      we assume that the models are totally separate (i.e. that one is
-      not a superset of the other), so the proposal does not depend on
-      the current state (in the other model).  This is the most likely
-      property of [make_rjmcmc_sampler] to change. 
+    produce a proposed jump into the model (from the opposite
+    model).  For now, we assume that the models are totally separate
+    (i.e. that one is not a superset of the other), so the proposal
+    does not depend on the current state (in the other model).  This
+    is the most likely property of [make_rjmcmc_sampler] to change.
 
     - [log_transition_jump_probabilities] is a pair of functions that
-      return the log of the probability to propose a transition jump
-      to the given state. 
+    return the log of the probability to propose a transition jump
+    to the given state. 
 
     - [model_priors] are the priors on the models under consideration
-      (note that these two numbers should sum to [1.0]).
+    (note that these two numbers should sum to [1.0]).
 
     The [log_likelihoods], [log_priors], [internal_jump_proposals],
     and [log_internal_jump_probabilities] procedures are exactly the

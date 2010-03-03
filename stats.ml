@@ -20,6 +20,20 @@ let std ?mean xs =
 
 let pi = 4.0 *. (atan 1.0)
 
+let multi_mean xs = 
+  let mu = Array.make (Array.length xs.(0)) 0.0 and 
+      n = float_of_int (Array.length xs) in 
+    for i = 0 to Array.length xs - 1 do 
+      let x = xs.(i) in 
+        for j = 0 to Array.length x - 1 do 
+          mu.(j) <- mu.(j) +. x.(j)
+        done
+    done;
+    for i = 0 to Array.length mu - 1 do 
+      mu.(i) <- mu.(i) /. n
+    done;
+    mu
+
 let draw_cauchy x0 gamma = 
   let p = Random.float 1.0 in 
     x0 +. gamma*.(tan (pi *. (p -. 0.5)))

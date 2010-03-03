@@ -3,6 +3,10 @@
 (** [mean xs] returns the mean value. *)
 val mean : float array -> float
 
+(** [multi_mean xs] returns the mean value of the data in each
+    dimension. *)
+val multi_mean : float array array -> float array
+
 (** [std ?mean xs] returns the standard deviation of the xs.  In the
     common case that the mean is already known it can be supplied in
     the [?mean] optional argument to eliminate redundant
