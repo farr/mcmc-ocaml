@@ -3,3 +3,4 @@ data
 *.native
 *.byte
 *.docdir
+*.nb
