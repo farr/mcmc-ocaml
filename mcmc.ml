@@ -107,3 +107,60 @@ let rjmcmc_model_counts data =
         | B(_) -> incr nb
     done;
     (!na, !nb)
+
+let log_sum_logs la lb = 
+  if la > lb then 
+    let r = lb /. la in 
+      la +. (log (1.0 +. (exp r)))
+  else
+    let r = la /. lb in 
+      lb +. (log (1.0 +. (exp r)))
+
+let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) = 
+  let log_pa = log pa and 
+      log_pb = log pb in 
+  let log_likelihood (lam,a,b) = 
+    (* Likelihood includes priors, too, since not multiplicative. *)
+    log_sum_logs
+      ((log lam) +. (lla a) +. (lpa a) +. log_pa)
+      ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. log_pb) and 
+      log_prior _ = 0.0 and 
+      propose (lam,a,b) = 
+    (Random.float 1.0, jpa a, jpb b) and 
+      log_jump_prob (_,a,b) (_, a', b') = 
+    (ljpa a a') +. (ljpb b b') in 
+    make_mcmc_sampler log_likelihood log_prior propose log_jump_prob
+
+let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (a, b) = 
+  let lam = Random.float 1.0 in 
+  let start = 
+    {value = (lam, a, b);
+     like_prior = 
+        {log_likelihood = 
+            log_sum_logs 
+              ((log lam) +. (lla a) +. (lpa a) +. (log pa))
+              ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. (log pb));
+         log_prior = 0.0}} in 
+  let next = make_admixture_mcmc_sampler (lla,llb) (lpa,lpb) (jpa, jpb) (ljpa, ljpb) (pa,pb) in 
+  let samps = Array.make n start in 
+    for i = 1 to n - 1 do 
+      let last = samps.(i-1) in 
+        samps.(i) <- next last
+    done;
+    samps
+
+let admixture_evidence_ratio_formula nlt ngt = 
+  let f = (float_of_int nlt) /. (float_of_int (nlt+ngt)) in 
+    (3.0 -. 4.0*.f)/.(4.0*.f-.1.0)
+
+let admixture_evidence_ratio data = 
+  let nlt = ref 0 and 
+      ngt = ref 0 in 
+    for i = 0 to Array.length data - 1 do 
+      let {value = (lam,_,_)} = data.(i) in 
+        if lam <= 0.5 then 
+          incr nlt
+        else
+          incr ngt
+    done;
+    admixture_evidence_ratio_formula !nlt !ngt

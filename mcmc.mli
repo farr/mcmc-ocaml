@@ -140,3 +140,24 @@ val rjmcmc_array :
     of times [A(_)] appears in [samples]; the second is the number of
     times [B(_)] appears. *)
 val rjmcmc_model_counts : ('a, 'b) rjmcmc_sample array -> (int * int)
+
+val make_admixture_mcmc_sampler : 
+  ('a -> float) * ('b -> float) -> 
+  ('a -> float) * ('b -> float) -> 
+  ('a -> 'a) * ('b -> 'b) -> 
+  ('a -> 'a -> float) * ('b -> 'b -> float) -> 
+  float * float -> 
+  (float * 'a * 'b) mcmc_sample -> (float * 'a * 'b) mcmc_sample
+
+val admixture_mcmc_array :   
+  int ->
+  ('a -> float) * ('b -> float) -> 
+  ('a -> float) * ('b -> float) -> 
+  ('a -> 'a) * ('b -> 'b) -> 
+  ('a -> 'a -> float) * ('b -> 'b -> float) -> 
+  float * float -> 
+  'a * 'b -> (float * 'a * 'b) mcmc_sample array
+
+val admixture_evidence_ratio : (float * 'a * 'b) mcmc_sample array -> float
+
+val admixture_evidence_ratio_formula : int -> int -> float
