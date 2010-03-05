@@ -141,23 +141,41 @@ val rjmcmc_array :
     times [B(_)] appears. *)
 val rjmcmc_model_counts : ('a, 'b) rjmcmc_sample array -> (int * int)
 
+(** [make_admixture_mcmc_sampler (log_like_a, log_like_b)
+    (log_prior_a, log_prior_b) (jump_prop_a, jump_prop_b)
+    (log_jump_prob_a, log_jump_prob_b) (model_prior_a, model_prior_b)
+    (volume_a, volume_b)]. Like {!Mcmc.make_mcmc_sampler}, but for an
+    admixture model of two parameter spaces.  The posterior of the
+    admixture model depends on the parameters of model a, model b, and
+    an additional parameter [lambda].  The posterior is [lambda
+    *. a_post /. volume_b +. (1.0 -. lambda) *. b_post /. volume_a].
+    [volume_a] and [volume_b] are the parameter-space volumes (note {b
+    not} prior mass---actual parameter volumes) for model a and model
+    b.  Marginalizing over all a and b parameters gives a posterior
+    for [lambda] proportional to [ lambda *. evidence_a +. (1.0
+    -. lambda) *. evidence_b ].  *)
 val make_admixture_mcmc_sampler : 
   ('a -> float) * ('b -> float) -> 
   ('a -> float) * ('b -> float) -> 
   ('a -> 'a) * ('b -> 'b) -> 
   ('a -> 'a -> float) * ('b -> 'b -> float) -> 
   float * float -> 
+  float * float ->
   (float * 'a * 'b) mcmc_sample -> (float * 'a * 'b) mcmc_sample
 
-val admixture_mcmc_array :   
+(** Make an array instead of a sampler for the admixture model; see
+    {!Mcmc.make_admixture_mcmc_sampler}. *)
+val admixture_mcmc_array :
   int ->
   ('a -> float) * ('b -> float) -> 
   ('a -> float) * ('b -> float) -> 
   ('a -> 'a) * ('b -> 'b) -> 
   ('a -> 'a -> float) * ('b -> 'b -> float) -> 
   float * float -> 
+  float * float -> 
   'a * 'b -> (float * 'a * 'b) mcmc_sample array
 
-val admixture_evidence_ratio : (float * 'a * 'b) mcmc_sample array -> float
-
-val admixture_evidence_ratio_formula : int -> int -> float
+(** Runs an MCMC to compute the distribution on the evidence ratio
+    given an array of admixture samples.*)
+val admixture_evidence_ratio_mcmc_array : 
+  int -> (float * 'a * 'b) mcmc_sample array -> float mcmc_sample array

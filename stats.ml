@@ -6,6 +6,14 @@ let mean xs =
     done;
     !sum /. (float_of_int n)
 
+let meanf f xs = 
+  let sum = ref 0.0 and 
+      n = Array.length xs in 
+    for i = 0 to n - 1 do 
+      sum := !sum +. (f xs.(i))
+    done;
+    !sum /. (float_of_int n)
+
 let std_mean = mean
 
 let std ?mean xs = 
@@ -17,6 +25,17 @@ let std ?mean xs =
         var := !var +. x*.x
     done;
     sqrt (!var /. (float_of_int (n-1)))
+
+let stdf ?mean f xs = 
+  let mean = match mean with | None -> meanf f xs | Some(mu) -> mu in 
+  let n = Array.length xs and 
+      sum = ref 0.0 in 
+    for i = 0 to Array.length xs - 1 do 
+      let x = f xs.(i) in 
+      let dx = x -. mean in 
+        sum := !sum +. dx*.dx
+    done;
+    sqrt (!sum /. (float_of_int (n-1)))
 
 let pi = 4.0 *. (atan 1.0)
 

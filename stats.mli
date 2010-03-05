@@ -3,15 +3,24 @@
 (** [mean xs] returns the mean value. *)
 val mean : float array -> float
 
+(** [meanf f xs] returns the mean value of [f] over the [xs]. *)
+val meanf : ('a -> float) -> 'a array -> float
+
 (** [multi_mean xs] returns the mean value of the data in each
     dimension. *)
 val multi_mean : float array array -> float array
 
-(** [std ?mean xs] returns the standard deviation of the xs.  In the
+(** [std ?mean xs] returns the standard deviation of the [xs].  In the
     common case that the mean is already known it can be supplied in
     the [?mean] optional argument to eliminate redundant
     computation. *)
 val std : ?mean : float -> float array -> float
+
+(** [stdf ?mean f xs] returns the standard deviation of [f] over the
+    [xs].  As in {!Stats.std}, a previously-computed mean value can be
+    suppled as the [~mean] argument to make the calculation more
+    efficient. *)
+val stdf : ?mean : float -> ('a -> float) -> 'a array -> float
 
 (** [draw_cauchy x0 gamma] draws a random number from the Cauchy
     distribution with mode [x0] and HWHM [gamma]. *)

@@ -116,14 +116,16 @@ let log_sum_logs la lb =
     let r = la /. lb in 
       lb +. (log (1.0 +. (exp r)))
 
-let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) = 
+let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (va, vb) = 
   let log_pa = log pa and 
-      log_pb = log pb in 
+      log_pb = log pb and
+      log_va = log va and 
+      log_vb = log vb in 
   let log_likelihood (lam,a,b) = 
     (* Likelihood includes priors, too, since not multiplicative. *)
     log_sum_logs
-      ((log lam) +. (lla a) +. (lpa a) +. log_pa)
-      ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. log_pb) and 
+      ((log lam) +. (lla a) +. (lpa a) +. log_pa -. log_vb)
+      ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. log_pb -. log_va) and 
       log_prior _ = 0.0 and 
       propose (lam,a,b) = 
     (Random.float 1.0, jpa a, jpb b) and 
@@ -131,7 +133,7 @@ let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (p
     (ljpa a a') +. (ljpb b b') in 
     make_mcmc_sampler log_likelihood log_prior propose log_jump_prob
 
-let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (a, b) = 
+let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (va, vb) (a, b) = 
   let lam = Random.float 1.0 in 
   let start = 
     {value = (lam, a, b);
@@ -141,7 +143,7 @@ let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb
               ((log lam) +. (lla a) +. (lpa a) +. (log pa))
               ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. (log pb));
          log_prior = 0.0}} in 
-  let next = make_admixture_mcmc_sampler (lla,llb) (lpa,lpb) (jpa, jpb) (ljpa, ljpb) (pa,pb) in 
+  let next = make_admixture_mcmc_sampler (lla,llb) (lpa,lpb) (jpa, jpb) (ljpa, ljpb) (pa,pb) (va,vb) in 
   let samps = Array.make n start in 
     for i = 1 to n - 1 do 
       let last = samps.(i-1) in 
@@ -149,18 +151,31 @@ let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb
     done;
     samps
 
-let admixture_evidence_ratio_formula nlt ngt = 
-  let f = (float_of_int nlt) /. (float_of_int (nlt+ngt)) in 
-    (3.0 -. 4.0*.f)/.(4.0*.f-.1.0)
-
-let admixture_evidence_ratio data = 
-  let nlt = ref 0 and 
-      ngt = ref 0 in 
-    for i = 0 to Array.length data - 1 do 
-      let {value = (lam,_,_)} = data.(i) in 
-        if lam <= 0.5 then 
-          incr nlt
-        else
-          incr ngt
-    done;
-    admixture_evidence_ratio_formula !nlt !ngt
+let admixture_evidence_ratio_mcmc_array n lambdas = 
+  let get_lam x = let (lam,_,_) = x.value in lam in 
+  let mean_lam = Stats.meanf get_lam lambdas in
+  let std_lam = Stats.stdf ~mean:mean_lam get_lam lambdas in 
+  let r_mean = 1.0 /. (2.0 -. 3.0*.mean_lam) -. 1.0 in 
+  let r_mean = if r_mean < 0.0 then 0.0 else r_mean in 
+  let denom_root = 2.0 -. 3.0 *. mean_lam in 
+  let dr_mean = 3.0 *. std_lam /. denom_root /. denom_root in 
+  let log_prior r = 
+    if r < 1.0 then 
+      log 0.5
+    else
+      (log 0.5) -. (2.0)*.(log r) and 
+      log_likelihood r = 
+    let ll = ref 0.0 in 
+      for i = 0 to Array.length lambdas - 1 do 
+        let (lam, _, _) = lambdas.(i).value in 
+          ll := !ll +. (log_sum_logs 
+                          ((log lam) +. (log r)) 
+                          (log (1.0 -. lam)))
+      done;
+      !ll +. 0.0 and 
+      propose r = 
+    let dr = (Random.float 1.0 -. 0.5)*.dr_mean in 
+      r +. dr and 
+      log_jump_prob _ _ = 0.0 in 
+    mcmc_array n log_likelihood log_prior propose log_jump_prob r_mean
+      
