@@ -110,11 +110,11 @@ let rjmcmc_model_counts data =
 
 let log_sum_logs la lb = 
   if la > lb then 
-    let r = lb /. la in 
-      la +. (log (1.0 +. (exp r)))
+    let lr = lb -. la in 
+      la +. (log (1.0 +. (exp lr)))
   else
-    let r = la /. lb in 
-      lb +. (log (1.0 +. (exp r)))
+    let lr = la -. lb in 
+      lb +. (log (1.0 +. (exp lr)))
 
 let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (va, vb) = 
   let log_pa = log pa and 

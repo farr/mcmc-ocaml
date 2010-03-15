@@ -104,6 +104,16 @@ let test_space_filling_invariant () =
       assert_bool "tree invariant violated" (acceptable_filling_tree_p t)
   done
 
+let log_multi_gaussian mu sigma x = 
+  let lg = ref 0.0 in 
+    for i = 0 to Array.length x - 1 do 
+      lg := !lg +. Stats.log_gaussian mu.(i) sigma.(i) x.(i) 
+    done;
+    !lg +. 0.0
+
+let random_jump delta = 
+  Random.float delta -. (0.5*.delta)
+
 let tests = "kd_tree.ml tests" >:::
   ["tree invariant" >:: test_tree_invariant;
    "tree depth" >:: test_tree_depth;

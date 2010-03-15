@@ -143,9 +143,55 @@ let test_rjmcmc_gaussians () =
     assert_equal_float ~epsrel:0.1 0.5 p1;
     assert_equal_float ~epsrel:0.1 0.5 p2
 
+let test_admixture_gaussian_cauchy () = 
+  let mu = Random.float 1.0 and 
+      sigma = Random.float 1.0 +. 1.0 in 
+  let ndata = 50 and 
+      nlambda = 10000 in
+  let samples = Array.init ndata (fun _ -> Stats.draw_gaussian mu sigma) in 
+  let log_gaussian_like ms = 
+    match ms with 
+      | [|mu; sigma|] -> 
+          let ll = ref 0.0 in 
+            for i = 0 to Array.length samples - 1 do 
+              ll := !ll +. log_gaussian mu sigma samples.(i)
+           done;
+            !ll +. 0.0
+      | _ -> raise (Invalid_argument "log_gaussian_like") in
+  let log_cauchy_like ms = 
+    match ms with 
+      | [|mu; sigma|] -> 
+          let ll = ref 0.0 in 
+            for i = 0 to Array.length samples - 1 do 
+              ll := !ll +. Stats.log_cauchy mu sigma samples.(i)
+            done;
+            !ll +. 0.0
+      | _ -> raise (Invalid_argument "log_cauchy_like") in 
+  let log_prior ms = 
+    match ms with 
+      | [|mu; sigma|] -> 
+          if 0.0 <= mu && mu <= 1.0 && 1.0 <= sigma && sigma <= 2.0 then 0.0 else neg_infinity 
+      | _ -> raise (Invalid_argument "log_prior") in
+  let propose ms = 
+    match ms with 
+      | [|mu; sigma|] -> 
+          let dmu = sigma /. (sqrt (float_of_int ndata)) and 
+              dsigma = sigma /. (sqrt (float_of_int ndata)) in 
+            [|random_between (mu -. dmu) (mu +. dmu);
+              random_between (sigma -. dsigma) (sigma +. dsigma)|]
+      | _ -> raise (Invalid_argument "propose") in 
+  let log_jump_prob _ _ = 0.0 in 
+  let lambda_samples = 
+    admixture_mcmc_array nlambda (log_gaussian_like, log_cauchy_like) (log_prior, log_prior) 
+      (propose, propose) (log_jump_prob, log_jump_prob) (0.5, 0.5) (1.0,1.0) 
+      ([|mu; sigma|], [|mu; sigma|]) in 
+  let avg_lambda = Stats.meanf (fun {Mcmc.value = (lam,_,_)} -> lam) lambda_samples in 
+    assert_bool "lambda small, favors cauchy" (avg_lambda > 0.5)
+
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
    "gaussian posterior, left-biased jump proposal" >:: test_gaussian_post_left_biased_proposal;
    "prior*like = gaussian, uniform jump" >:: test_prior_like;
    "remove_repeat" >:: test_remove_repeat;
-   "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians]
+   "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
+   "admixture gaussian vs cauchy test" >:: test_admixture_gaussian_cauchy]

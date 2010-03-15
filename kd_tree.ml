@@ -69,6 +69,11 @@ module type FILLING_KD_TREE = sig
   (** [in_bounds x low high] tests whether [x] is in the range
       \[[low], [high]). *)
   val in_bounds : float array -> float array -> float array -> bool
+
+(** [integrate f tree] integrates the function [f] on the objects in
+    the tree over the volume discretized by [tree].  *)
+  val integrate : (o -> float) -> tree -> float
+
 end
 
 module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
@@ -254,4 +259,17 @@ module Make_filling(O : COORDINATE_OBJECT) : FILLING_KD_TREE with type o = O.t =
     | Empty(low, high) -> vol low high
     | Null -> 0.0
     | Cell(_, low, high, _, _) -> vol low high      
+
+  let rec length_between a b = function 
+    | [] -> 
+        a <= 0 && 0 <= b 
+    | x :: xs -> length_between (a-1) (b-1) xs
+
+  let rec integrate f = function 
+    | Null -> 0.0
+    | Empty(_,_) -> 0.0
+    | Cell([obj], low, high, _, _) -> 
+        (vol low high)*.(f obj)
+    | Cell(_,_,_,left,right) -> 
+        (integrate f left) +. (integrate f right)
 end
