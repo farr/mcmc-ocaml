@@ -39,7 +39,7 @@ end
 module Make(S : PROB_SPACE) : INTERPOLATE_PDF with type point = S.point = struct
   type point = S.point 
 
-  module Kdt = Kd_tree.Make_filling(
+  module Kdt = Kd_tree.Make(
     struct
       type t = point
 
@@ -59,56 +59,45 @@ module Make(S : PROB_SPACE) : INTERPOLATE_PDF with type point = S.point = struct
       done;
       x
 
-  let center_pt low high = 
-    let n = Array.length low in 
-    let x = Array.make n 0.0 in 
-      for i = 0 to n - 1 do 
-        x.(i) <- 0.5*.(low.(i) +. high.(i))
+  let in_bounds pt low high = 
+    let i = ref 0 and 
+        n = Array.length pt in 
+      while (!i < n) && (pt.(!i) >= low.(!i)) && (pt.(!i) <= high.(!i)) do 
+        incr i
       done;
-      x
+      !i = n
 
-  let rec collect_extra_points = function 
-    | Kdt.Null -> []
-    | Kdt.Empty(low, high) -> [S.point (center_pt low high)]
-    | Kdt.Cell(_,_,_,left,right) -> 
-        List.rev_append (collect_extra_points left) (collect_extra_points right)
+  let in_tree pt = function 
+    | Kdt.Empty -> false
+    | Kdt.Cell(_, low, high, _, _) -> 
+        in_bounds pt low high
+
+  let rec find_cell pt = function 
+    | Kdt.Empty -> raise (Invalid_argument "find_cell: empty tree")
+    | Kdt.Cell(_, _, _, Kdt.Empty, Kdt.Empty) as c -> 
+        c
+    | Kdt.Cell(_, _, _, left, right) -> 
+        if in_tree pt left then 
+          find_cell pt left
+        else
+          find_cell pt right
 
   let make pts low high = 
-    let lpts = Array.to_list pts in 
-    let tree = Kdt.tree_of_objects lpts low high in 
-      (Array.of_list (List.rev_append (collect_extra_points tree) lpts),
-       tree)
-
-  let rec find_tree pt = function 
-    | Kdt.Null -> raise (Failure "find_volume: internal error")
-    | Kdt.Empty(_, _) as t -> t
-    | Kdt.Cell(_,_,_,Kdt.Null,Kdt.Null) as t -> 
-        t
-    | Kdt.Cell(_,_,_,left,right) -> 
-        if Kdt.in_tree_volume pt left then 
-          find_tree pt left
-        else
-          find_tree pt right
-
-  let find_volume pt tree = 
-    match find_tree pt tree with 
-      | Kdt.Empty(low,high) -> (low,high)
-      | Kdt.Cell(_,low,high,_,_) -> (low,high)
-      | _ -> raise (Failure "find_volume: internal error")
+    (pts, Kdt.tree_of_objects (Array.to_list pts) low high)
 
   let draw (pts, tree) = 
-    let n = Array.length pts in 
-    let pt = pts.(Random.int n) in 
-    let (low,high) = find_volume pt tree in 
-      S.point (random_in_volume low high)
+    let pt = pts.(Random.int (Array.length pts)) in 
+    match find_cell (S.coord pt) tree with 
+      | Kdt.Empty -> raise (Failure "draw: empty tree")
+      | Kdt.Cell(_,low,high,_,_) -> 
+          S.point (random_in_volume low high)
 
   let jump_prob (pts, tree) _ pt = 
-    let n = Array.length pts in 
-    let nf = float_of_int n in 
-      match find_tree pt tree with 
-        | Kdt.Empty(_,_) as t -> 1.0 /. nf /. (Kdt.volume t)
-        | Kdt.Cell(objs, _, _, _, _) as t -> 
-            (float_of_int (List.length objs)) /. nf /. (Kdt.volume t)
-        | _ -> raise (Failure "jump_prob: internal error")
-
+    let n = float_of_int (Array.length pts) in 
+      match find_cell (S.coord pt) tree with 
+        | Kdt.Empty -> raise (Failure "jump_prob: empty tree")
+        | Kdt.Cell(objs, low, high, _, _) -> 
+            let nobjs = float_of_int (List.length objs) and 
+                v = Kdt.bounds_volume low high in 
+              nobjs /. (v *. n)
 end

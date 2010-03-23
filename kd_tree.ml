@@ -28,248 +28,144 @@ module type KD_TREE = sig
               | Cell of o list * float array * float array * tree * tree
               | Empty
 
-  (** Constructs a tree from the given objects. *)
-  val tree_of_objects : o list -> tree
-
-  (** [volume tree] returns the coordinate volume spanned by the
-      objects in the tree. *)
-  val volume : tree -> float
-end
-
-(** Output signature of the [Make_filling] functor.  The difference
-    between space-filling kD trees and ordinary kD trees is that the
-    filling kD trees (and their sub-cells) have bounds that exactly
-    partition a rectangular region of R^n; regular kD trees have
-    bounds that are as small as possible to enclose the objects
-    contained in them.  At every level in a space-filling kD tree, the
-    union of the cell volumes is equal to the total volume at the top
-    of the tree; a normal kD tree will be missing some volume at lower
-    levels because it shrinks the cell bounds down to the bounding box
-    for the objects in the cell. *)
-module type FILLING_KD_TREE = sig
-  (** Objects. *)
-  type o
-
-  (** Trees. *)
-  type tree = private 
-              | Cell of o list * float array * float array * tree * tree
-              | Empty of float array * float array (** Empty cell, but finite volume. *)
-              | Null (** Empty cell of zero volume. *)
-
-(** Construct a tree with the given bounds.  All objects should be
-    in the range [\[low, high)].*)
+  (** Constructs a tree from the given objects and bounds. *)
   val tree_of_objects : o list -> float array -> float array -> tree
 
-  (** Tree volume. *)
+  (** Returns two bounds that enclose the given objects. *)
+  val bounds_of_objects : o list -> float array * float array
+
+  (** [bounds_volume low high] computes the volume enclosed by the
+      given rectangular bounds. *)
+  val bounds_volume : float array -> float array -> float
+
+  (** [volume tree] returns the coordinate volume spanned by the
+      tree. *)
   val volume : tree -> float
-
-  (** Is the given object contained within the volume of the tree? *)
-  val in_tree_volume : o -> tree -> bool
-
-  (** [in_bounds x low high] tests whether [x] is in the range
-      \[[low], [high]). *)
-  val in_bounds : float array -> float array -> float array -> bool
-
-(** [integrate f tree] integrates the function [f] on the objects in
-    the tree over the volume discretized by [tree].  *)
-  val integrate : (o -> float) -> tree -> float
-
 end
 
 module Make(O : COORDINATE_OBJECT) : KD_TREE with type o = O.t = struct
   type o = O.t
 
-  type tree = | Cell of o list * float array * float array * tree * tree
-              | Empty
+  type tree = 
+    | Cell of o list * float array * float array * tree * tree
+    | Empty
 
-  let bounds_of_objects = function
-    | [] -> raise (Invalid_argument "bounds_of_objects: need at least one object")
-    | o :: objs -> 
-        let low = Array.copy (O.coord o) in 
-        let high = Array.copy low in 
-          List.fold_left
-            (fun (low, high) o ->
-               let coord = O.coord o in 
-                 for i = 0 to Array.length coord - 1 do 
-                   if low.(i) > coord.(i) then low.(i) <- coord.(i);
-                   if high.(i) < coord.(i) then high.(i) <- coord.(i)
-                 done;
-                 (low, high))
-            (low, high)
-            objs
+  let rec find_ith compare i = function 
+    | [] -> raise (Invalid_argument "find_ith: no objects")
+    | [x] -> 
+        if i = 0 then 
+          x
+        else
+          raise (Failure "find_ith: internal error")
+    | x :: xs as objs -> 
+        if List.for_all (fun y -> compare x y = 0) xs then 
+          x
+        else
+          let pvt = List.nth objs (Random.int (List.length objs)) in 
+          let (lte, gt) = List.partition (fun obj -> compare obj pvt <= 0) objs in 
+          let n_lte = List.length lte in 
+            if i < n_lte then 
+              find_ith compare i lte
+            else
+              find_ith compare (i-n_lte) gt
 
-  let compare_all_coords o1 o2 = 
+  let compare_along_dim i o1 o2 = 
     let c1 = O.coord o1 and 
         c2 = O.coord o2 in 
-      Pervasives.compare c1 c2
+      Pervasives.compare c1.(i) c2.(i)
 
-  let compare_along_dimension dim o1 o2 = 
-    let c1 : float array = O.coord o1 and 
-        c2 = O.coord o2 in 
-      Pervasives.compare c1.(dim) c2.(dim)
+  let compare_coords o1 o2 = 
+    Pervasives.compare (O.coord o1) (O.coord o2)
 
-  let lte compare a b = 
-    (compare a b) <= 0
+  let bounds_of_objects = function 
+    | [] -> raise (Invalid_argument "bounds_of_objects: no objects")
+    | [x] -> (O.coord x, O.coord x)
+    | x :: xs -> 
+        let low = Array.copy (O.coord x) in 
+        let high = Array.copy low in 
+          List.iter 
+            (fun x -> 
+               let c = O.coord x in 
+                 for i = 0 to Array.length low - 1 do 
+                   if c.(i) < low.(i) then low.(i) <- c.(i);
+                   if c.(i) > high.(i) then high.(i) <- c.(i)
+                 done)
+            xs;
+          (low,high)
 
-  let rec all_equal compare = function 
-    | [] -> true
-    | [x] -> true
-    | x :: (y :: _ as rest) -> compare x y = 0 && all_equal compare rest
+  let split_bounds low high olow ohigh dim = 
+    let x = 0.5*.((O.coord olow).(dim) +. (O.coord ohigh).(dim)) in 
+    let new_low = Array.copy low and 
+        new_high = Array.copy high in 
+      new_low.(dim) <- x;
+      new_high.(dim) <- x;
+      (new_low, new_high)
 
-  let rec find_nth_sorted compare objs n = 
-    match objs with 
-      | [] -> raise (Failure "find_nth_sorted: no objects")
-      | [obj] -> 
-          if n = 0 then obj else raise (Failure "find_nth_sorted: internal error, n > 0")
-      | (o :: objs as l) when all_equal compare l -> o
-      | objs -> 
-          let len = List.length objs in 
-          let pvt = List.nth objs (Random.int len) in 
-          let (lte, gt) = List.partition (fun obj -> lte compare obj pvt) objs in 
-          let len_lte = List.length lte in 
-            if n < len_lte then 
-              find_nth_sorted compare lte n
-            else
-              find_nth_sorted compare gt (n-len_lte)
-
-  let partition_elt compare = function 
-    | [] -> raise (Invalid_argument "median: no objects")
-    | objs -> 
-        let n = List.length objs in 
-        let i = if n mod 2 = 0 then n/2 - 1 else n/2 in 
-          find_nth_sorted compare objs i
-
-  let longest_dimension low high = 
-    let dx_max = ref (-1.0/.0.0) and 
-        dim = ref (-1) in 
+  let longest_dim low high = 
+    let dim = ref (-1) and 
+        dx_max = ref neg_infinity in 
       for i = 0 to Array.length low - 1 do 
         let dx = high.(i) -. low.(i) in 
           if dx > !dx_max then begin
-            dx_max := dx;
-            dim := i
+            dim := i;
+            dx_max := dx
           end
       done;
       !dim
 
-  let rec tree_of_objects = function 
-    | [] -> Empty
-    | (o :: _) as objs when all_equal compare_all_coords objs -> 
-        let low = Array.copy (O.coord o) in 
-          Cell(objs, low, low, Empty, Empty)
-    | objs -> 
-        let (low,high) = bounds_of_objects objs in 
-        let dim = longest_dimension low high in 
-        let compare = compare_along_dimension dim in 
-        let part_elt = partition_elt compare objs in 
-        let (lte, gt) = List.partition (fun obj -> lte compare obj part_elt) objs in 
-          Cell(objs, low, high, 
-               tree_of_objects lte,
-               tree_of_objects gt)
-
-  let volume = function 
-    | Empty -> 0.0
-    | Cell(_, low, high, _, _) -> 
-        let vol = ref 1.0 in 
-          for i = 0 to Array.length low - 1 do 
-            vol := !vol *. (high.(i) -. low.(i))
-          done;
-          !vol
-end
-
-(** [Make_filling] is like [Make] except that the trees that it
-    produces fill a rectangular coordinate volume completely instead
-    of having bounds that exactly enclose a list of objects. *)
-module Make_filling(O : COORDINATE_OBJECT) : FILLING_KD_TREE with type o = O.t = struct
-  type o = O.t
-
-  type tree = 
-    | Cell of o list * float array * float array * tree * tree
-    | Empty of float array * float array
-    | Null
-
-  let sub_bounds dim low high = 
-    let new_low = Array.copy low and 
-        new_high = Array.copy high in 
-    let x_split = (low.(dim) +. high.(dim))*.0.5 in 
-      new_low.(dim) <- x_split;
-      new_high.(dim) <- x_split;
-      (new_low, new_high)
-
-  let in_bounds x low high = 
-    let n = Array.length x in 
-    let i = ref 0 and 
-        inb = ref true in 
-      while (!inb && !i <= n-1) do 
-        let x = x.(!i) in 
-          if x < low.(!i) || x >= high.(!i) then inb := false;
-          incr i
-      done;
-      !inb
-
-  let object_in_bounds o low high = in_bounds (O.coord o) low high
-
-  let in_tree_volume o = function 
-    | Cell(_, low, high, _, _) -> 
-        object_in_bounds o low high
-    | Empty(low,high) -> object_in_bounds o low high
-    | Null -> false
-
-  let longest_dimension low high = 
-    let dx = ref neg_infinity and 
-        dim = ref (-1) in
-      for i = 0 to Array.length low - 1 do 
-        let dxi = high.(i) -. low.(i) in 
-          if dxi > !dx then begin
-            dx := dxi;
-            dim := i
-          end
-      done;
-      !dim
-
-  let all_equal = function 
-    | [] -> true
-    | [x] -> true
+  let find_max comp = function 
+    | [] -> raise (Invalid_argument "find_max: no objects")
+    | [x] -> x
     | x :: xs -> 
-        let xc = O.coord x in 
-          List.for_all (fun y -> Pervasives.compare xc (O.coord y) = 0) xs
+        List.fold_left (fun max x -> if comp x max > 0 then x else max) x xs
+
+  let find_min comp = function 
+    | [] -> raise (Invalid_argument "find_min: no objects")
+    | [x] -> x
+    | x :: xs -> 
+        List.fold_left (fun min x -> if comp x min < 0 then x else min) x xs
+
+  let adjust_for_empty_split comp objs objs2 =
+    match objs, objs2 with 
+      | [], [] -> [], []
+      | [], objs -> 
+          let min = find_min comp objs in 
+            List.partition (fun obj -> comp obj min <= 0) objs
+      | objs, [] -> 
+          let max = find_max comp objs in 
+            List.partition (fun obj -> comp obj max < 0) objs 
+      | objs, objs2 -> objs, objs2
 
   let rec tree_of_objects objs low high = 
     match objs with 
-      | [] -> Empty(low, high)
-      | objs when all_equal objs -> 
-          Cell(objs, low, high, Null, Null)
+      | [] -> Empty
+      | [x] as l -> Cell(l, low, high, Empty, Empty)
+      | (x :: xs as l) when List.for_all (fun y -> compare_coords x y = 0) xs -> 
+          Cell(l, low, high, Empty, Empty)
       | objs -> 
-          let dim = longest_dimension low high in 
-          let (new_low, new_high) = sub_bounds dim low high in 
-          let (left, right) = 
-            List.partition (fun obj -> object_in_bounds obj low new_high) objs in 
-            Cell(objs, low, high,
-                 tree_of_objects left low new_high,
-                 tree_of_objects right new_low high)
+          let n = List.length objs in 
+          let i = n / 2 in 
+          let (l,h) = bounds_of_objects objs in 
+          let dim = longest_dim l h in 
+          let comp x y = compare_along_dim dim x y in 
+          let pvt = find_ith comp i objs in 
+          let (lte, gt) = List.partition (fun x -> compare_along_dim dim x pvt <= 0) objs in 
+          let (lte, gt) = adjust_for_empty_split comp lte gt in 
+          let lt_bound = find_max comp lte and 
+              gt_bound = find_min comp gt in 
+          let (new_low, new_high) = split_bounds low high lt_bound gt_bound dim in 
+            Cell(objs, low, high, 
+                 tree_of_objects lte low new_high,
+                 tree_of_objects gt new_low high)
 
-  let vol low high = 
-    let vol = ref 1.0 in 
+  let bounds_volume low high = 
+    let v = ref 1.0 in 
       for i = 0 to Array.length low - 1 do 
-        let dx = high.(i) -. low.(i) in 
-          vol := !vol *. dx
+        v := !v *. (high.(i) -. low.(i))
       done;
-      !vol +. 0.0
-
+      !v +. 0.0
+    
   let volume = function 
-    | Empty(low, high) -> vol low high
-    | Null -> 0.0
-    | Cell(_, low, high, _, _) -> vol low high      
-
-  let rec length_between a b = function 
-    | [] -> 
-        a <= 0 && 0 <= b 
-    | x :: xs -> length_between (a-1) (b-1) xs
-
-  let rec integrate f = function 
-    | Null -> 0.0
-    | Empty(_,_) -> 0.0
-    | Cell([obj], low, high, _, _) -> 
-        (vol low high)*.(f obj)
-    | Cell(_,_,_,left,right) -> 
-        (integrate f left) +. (integrate f right)
+    | Empty -> 0.0
+    | Cell(_, low, high, _, _) -> bounds_volume low high
 end

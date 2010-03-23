@@ -23,15 +23,17 @@ module type EVIDENCE = sig
   module Kd : (Kd_tree.KD_TREE with type o = sample)
 
   (** Construct a kD tree. *)
-  val kd_tree_of_samples : sample array -> Kd.tree
+  val kd_tree_of_samples : sample array -> float array -> float array -> Kd.tree
 
-  (** Directly integrate evidence. *)
+  (** Directly integrate evidence within the rectangular region in
+      parameter space between the two given arrays. *)
   val evidence_direct : ?n : int -> sample array -> float
 
   (** Integrate evidence using harmonic mean. *)
   val evidence_harmonic_mean : sample array -> float
 
-  (** Integrate evidence using Lebesque integral of 1/L *)
+  (** Integrate evidence using Lebesque integral of 1/L, within the
+  rectangular parameter region between the given arrays.  *)
   val evidence_lebesgue : ?n : int -> ?eps : float -> ?eql : (params -> params -> bool) -> 
     sample array -> float
 end
@@ -97,12 +99,15 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
         f (List.nth ssamp (n/2))
       
   let evidence_direct ?(n = 64) samples = 
-    let sub_vs = collect_subvolumes n (kd_tree_of_samples samples) in 
+    let lsamples = Array.to_list samples in 
+    let (low,high) = Kd.bounds_of_objects lsamples in 
+    let sub_vs = collect_subvolumes n (Kd.tree_of_objects lsamples low high) in 
       List.fold_left
         (fun integral c -> 
            match c with 
              | Kd.Cell(objs, _, _, _, _) ->
-                 let vol = Kd.volume c and 
+                 let (low,high) = Kd.bounds_of_objects objs in 
+                 let vol = Kd.bounds_volume low high and 
                      lp = median_sample log_posterior objs in 
                    integral +. vol*.(exp lp)
              | _ -> raise (Invalid_argument "evidence_direct: bad cell in integral accumulation"))
@@ -127,13 +132,15 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
   let evidence_lebesgue ?(n = 64) ?(eps = 0.1) ?(eql = (=) ) samples = 
     let samples = Array.to_list samples in 
     let samps = collect_samples_up_to_eps eps (List.fast_sort compare_inverse_like samples) in 
-    let sub_vs = collect_subvolumes n (kd_tree_of_samples (Mcmc.remove_repeat_samples eql (Array.of_list samps))) in 
+    let (low,high) = Kd.bounds_of_objects samps in 
+    let sub_vs = collect_subvolumes n (kd_tree_of_samples (Mcmc.remove_repeat_samples eql (Array.of_list samps)) low high) in 
     let prior_mass = 
       List.fold_left
         (fun pm c -> 
            match c with 
-             | Kd.Cell(objs, _, _, _, _) -> 
-                 let vol = Kd.volume c and 
+             | Kd.Cell(objs, _, _, _, _) ->
+                 let (low,high) = Kd.bounds_of_objects objs in 
+                 let vol = Kd.bounds_volume low high and 
                      lp = median_sample log_prior objs in 
                    pm +. vol*.(exp lp)
              | _ -> raise (Failure "evidence_lebesque: bad cell in integral accumulation of prior mass"))

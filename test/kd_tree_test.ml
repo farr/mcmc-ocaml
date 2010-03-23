@@ -9,12 +9,6 @@ module Kdt = Kd_tree.Make(
 
 open Kdt
 
-module Kdt_fill = Kd_tree.Make_filling(
-  struct
-    type t = float array 
-    let coord (x : t) = x
-  end)
-
 let random_point n = 
   Array.init n (fun _ -> Random.float 1.0)
 
@@ -27,11 +21,8 @@ let build_list n f =
 
 let random_tree n = 
   let objs = build_list n (fun _ -> random_point 2) in 
-    tree_of_objects objs
-
-let random_fill_tree n = 
-  let objs = build_list n (fun _ -> random_point 2) in 
-    Kdt_fill.tree_of_objects objs [|0.0; 0.0|] [|1.0; 1.0|]
+  let (low,high) = bounds_of_objects objs in 
+    tree_of_objects objs low high
 
 let in_bounds_p x low high = 
   let n = Array.length x in 
@@ -67,18 +58,6 @@ let rec acceptable_tree_p = function
          objs) && (acceptable_tree_p left) && (acceptable_tree_p right)
   | _ -> true
 
-let rec acceptable_filling_tree_p = function 
-  | Kdt_fill.Empty(_,_) -> true
-  | Kdt_fill.Null -> true
-  | Kdt_fill.Cell(_, _, _,
-         Kdt_fill.Null, Kdt_fill.Null) -> true
-  | Kdt_fill.Cell(objs, _, _, left, right) as t -> 
-      (List.for_all
-         (fun obj -> Kdt_fill.in_tree_volume obj t)
-         objs) &&
-        (acceptable_filling_tree_p left) &&
-        (acceptable_filling_tree_p right)
-
 let rec depth = function 
   | Empty -> 0
   | Cell(_,_,_,left,right) -> 
@@ -96,13 +75,7 @@ let test_tree_depth () =
   let d = depth t in
     assert_bool 
       (Printf.sprintf "depth of 1024 points not near 10, instead %d" d)
-      ((9 <= d) && (d <= 11))
-
-let test_space_filling_invariant () = 
-  for i = 0 to 100 do 
-    let t = random_fill_tree 250 in 
-      assert_bool "tree invariant violated" (acceptable_filling_tree_p t)
-  done
+      ((8 <= d) && (d <= 12))
 
 let log_multi_gaussian mu sigma x = 
   let lg = ref 0.0 in 
@@ -116,5 +89,4 @@ let random_jump delta =
 
 let tests = "kd_tree.ml tests" >:::
   ["tree invariant" >:: test_tree_invariant;
-   "tree depth" >:: test_tree_depth;
-   "filling tree invariant" >:: test_space_filling_invariant]
+   "tree depth" >:: test_tree_depth]
