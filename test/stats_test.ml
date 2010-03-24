@@ -45,6 +45,15 @@ let test_multi_mean () =
     assert_equal_float 2.0 mu.(0);
     assert_equal_float (-1.0/.3.0) mu.(1)
 
+let test_multi_std () = 
+  let xs = [|[|0.662891; 0.218155; 0.464706; 0.148477; 0.39616|];
+             [|0.43397; 0.161041; 0.625332; 0.508765; 0.261084|];
+             [|0.147267; 0.403388; 0.643601; 0.892214; 0.269893|]|] in 
+  let std = multi_std xs in 
+    assert_equal_float_array ~epsabs:1e-3 ~epsrel:1e-3 
+      [|0.258351; 0.126692; 0.098436; 0.371928; 0.0755716|]
+      std
+
 let test_meanf_stdf () = 
   let xs = Array.init 1000 (fun _ -> Random.float 1.0) in 
     assert_equal_float (mean xs) (meanf (fun x -> x) xs);
@@ -58,4 +67,5 @@ let tests = "stats.ml tests" >:::
    "gaussian dist" >:: test_gaussian;
    "randomized gaussian draws" >:: test_gaussian_random;
    "multi_mean" >:: test_multi_mean;
-   "meanf and stdf" >:: test_meanf_stdf]
+   "meanf and stdf" >:: test_meanf_stdf;
+   "multi_std" >:: test_multi_std]

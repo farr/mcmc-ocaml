@@ -22,6 +22,12 @@ val std : ?mean : float -> float array -> float
     efficient. *)
 val stdf : ?mean : float -> ('a -> float) -> 'a array -> float
 
+(** [multi_std ?mean xs] returns the standard deviation of the
+    multi-dimensional samples [xs].  It is completely equivalent to
+    [Array.init dim (fun i -> std (Array.map (fun x -> x.(i)) xs))],
+    but more efficient. *)
+val multi_std : ?mean : float array -> float array array -> float array
+
 (** [draw_cauchy x0 gamma] draws a random number from the Cauchy
     distribution with mode [x0] and HWHM [gamma]. *)
 val draw_cauchy : float -> float -> float

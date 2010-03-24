@@ -53,6 +53,23 @@ let multi_mean xs =
     done;
     mu
 
+let multi_std ?mean xs = 
+  let mean = match mean with | None -> multi_mean xs | Some(mu) -> mu in 
+  let n = Array.length xs and 
+      dim = Array.length xs.(0) in
+  let std = Array.make dim 0.0 in 
+    for i = 0 to n - 1 do 
+      let x = xs.(i) in 
+        for j = 0 to dim - 1 do 
+          let dx = x.(j) -. mean.(j) in 
+            std.(j) <- std.(j) +. dx*.dx
+        done
+    done;
+    for i = 0 to dim - 1 do 
+      std.(i) <- sqrt (std.(i) /. (float_of_int (n-1)))
+    done;
+    std
+
 let draw_cauchy x0 gamma = 
   let p = Random.float 1.0 in 
     x0 +. gamma*.(tan (pi *. (p -. 0.5)))
