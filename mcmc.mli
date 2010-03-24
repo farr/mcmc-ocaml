@@ -174,8 +174,3 @@ val admixture_mcmc_array :
   float * float -> 
   float * float -> 
   'a * 'b -> (float * 'a * 'b) mcmc_sample array
-
-(** Runs an MCMC to compute the distribution on the evidence ratio
-    given an array of admixture samples.*)
-val admixture_evidence_ratio_mcmc_array : 
-  int -> (float * 'a * 'b) mcmc_sample array -> float mcmc_sample array

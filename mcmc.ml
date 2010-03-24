@@ -150,32 +150,3 @@ let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb
         samps.(i) <- next last
     done;
     samps
-
-let admixture_evidence_ratio_mcmc_array n lambdas = 
-  let get_lam x = let (lam,_,_) = x.value in lam in 
-  let mean_lam = Stats.meanf get_lam lambdas in
-  let std_lam = Stats.stdf ~mean:mean_lam get_lam lambdas in 
-  let r_mean = 1.0 /. (2.0 -. 3.0*.mean_lam) -. 1.0 in 
-  let r_mean = if r_mean < 0.0 then 0.0 else r_mean in 
-  let denom_root = 2.0 -. 3.0 *. mean_lam in 
-  let dr_mean = 3.0 *. std_lam /. denom_root /. denom_root in 
-  let log_prior r = 
-    if r < 1.0 then 
-      log 0.5
-    else
-      (log 0.5) -. (2.0)*.(log r) and 
-      log_likelihood r = 
-    let ll = ref 0.0 in 
-      for i = 0 to Array.length lambdas - 1 do 
-        let (lam, _, _) = lambdas.(i).value in 
-          ll := !ll +. (log_sum_logs 
-                          ((log lam) +. (log r)) 
-                          (log (1.0 -. lam)))
-      done;
-      !ll +. 0.0 and 
-      propose r = 
-    let dr = (Random.float 1.0 -. 0.5)*.dr_mean in 
-      r +. dr and 
-      log_jump_prob _ _ = 0.0 in 
-    mcmc_array n log_likelihood log_prior propose log_jump_prob r_mean
-      
