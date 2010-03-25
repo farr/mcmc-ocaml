@@ -130,10 +130,11 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
       collect_samples_loop [] samps
 
   let evidence_lebesgue ?(n = 64) ?(eps = 0.1) ?(eql = (=) ) samples = 
-    let samples = Array.to_list samples in 
-    let samps = collect_samples_up_to_eps eps (List.fast_sort compare_inverse_like samples) in 
+    let samples = Mcmc.remove_repeat_samples eql samples in 
+    let samples_list = Array.to_list samples in 
+    let samps = collect_samples_up_to_eps eps (List.fast_sort compare_inverse_like samples_list) in 
     let (low,high) = Kd.bounds_of_objects samps in 
-    let sub_vs = collect_subvolumes n (kd_tree_of_samples (Mcmc.remove_repeat_samples eql (Array.of_list samps)) low high) in 
+    let sub_vs = collect_subvolumes n (kd_tree_of_samples samples low high) in 
     let prior_mass = 
       List.fold_left
         (fun pm c -> 
@@ -152,6 +153,5 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
         0.0 
         samps and 
         n = float_of_int (List.length samps) in 
-      n*.prior_mass/.inv_l
-    
+      n*.prior_mass/.inv_l    
 end

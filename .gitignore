@@ -4,3 +4,4 @@ data
 *.byte
 *.docdir
 *.nb
+*.dat
