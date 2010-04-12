@@ -49,8 +49,8 @@ let test_mean_distribution () =
   let pdf = make pts [|0.0; 0.0|] [|b0; b1|] in 
   let pts = Array.init 10000 (fun _ -> draw pdf) in 
   let mu = mean pts in 
-    assert_equal_float ~epsrel:0.01 ~msg:"first component" (linear_mean 0.0 b0) mu.(0);
-    assert_equal_float ~epsrel:0.01 ~msg:"second component" (linear_mean 0.0 b1) mu.(1)
+    assert_equal_float ~epsrel:0.05 ~msg:"first component" (linear_mean 0.0 b0) mu.(0);
+    assert_equal_float ~epsrel:0.05 ~msg:"second component" (linear_mean 0.0 b1) mu.(1)
 
 let tests = "interpolate_pdf.ml tests" >:::
   ["mean of linear PDF in 2D" >:: test_mean_distribution]

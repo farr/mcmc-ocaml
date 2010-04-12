@@ -5,6 +5,14 @@
     random number generator to generate the random numbers used in the
     probabilistic sampling from the chain. *)
 
+(** We store the number of accepted and rejected steps and provide
+    access through the following two functions.  [reset_counters ()]
+    resets the counters to 0, and [get_counters ()] returns the
+    counter values: number accepted steps and number rejected
+    steps. *)
+val reset_counters : unit -> unit
+val get_counters : unit -> int * int
+
 (** Store probability information unboxed. *)
 type like_prior = {
   log_likelihood : float;

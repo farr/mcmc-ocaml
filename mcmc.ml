@@ -8,6 +8,16 @@ type 'a mcmc_sample = {
   like_prior : like_prior
 }
 
+let naccept = ref 0
+let nreject = ref 0
+
+let reset_counters () = 
+  naccept := 0;
+  nreject := 0
+
+let get_counters () = 
+  (!naccept, !nreject)
+
 let make_mcmc_sampler log_likelihood log_prior jump_proposal log_jump_prob = 
   fun x -> 
     let start = x.value and 
@@ -20,11 +30,14 @@ let make_mcmc_sampler log_likelihood log_prior jump_proposal log_jump_prob =
         log_backward_jump = log_jump_prob proposed start in 
     let log_accept_prob = 
       proposed_log_posterior -. start_log_post +. log_backward_jump -. log_forward_jump in 
-      if log (Random.float 1.0) < log_accept_prob then 
+      if log (Random.float 1.0) < log_accept_prob then begin
+        incr naccept;
         {value = proposed;
          like_prior = {log_likelihood = proposed_like; log_prior = proposed_prior}}
-      else
+      end else begin
+        incr nreject;
         x
+      end
 
 let mcmc_array n log_likelihood log_prior jump_proposal log_jump_prob start = 
   let samples = 
@@ -123,9 +136,10 @@ let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (p
       log_vb = log vb in 
   let log_likelihood (lam,a,b) = 
     (* Likelihood includes priors, too, since not multiplicative. *)
-    log_sum_logs
-      ((log lam) +. (lla a) +. (lpa a) +. log_pa -. log_vb)
-      ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. log_pb -. log_va) and 
+    let lpa = ((log lam) +. (lla a) +. (lpa a) +. log_pa -. log_vb) and 
+        lpb = ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. log_pb -. log_va) in
+    let lp = log_sum_logs lpa lpb in 
+      lp and
       log_prior _ = 0.0 and 
       propose (lam,a,b) = 
     (Random.float 1.0, jpa a, jpb b) and 
@@ -140,8 +154,8 @@ let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb
      like_prior = 
         {log_likelihood = 
             log_sum_logs 
-              ((log lam) +. (lla a) +. (lpa a) +. (log pa))
-              ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. (log pb));
+              ((log lam) +. (lla a) +. (lpa a) +. (log pa) -. (log vb))
+              ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. (log pb) -. (log va));
          log_prior = 0.0}} in 
   let next = make_admixture_mcmc_sampler (lla,llb) (lpa,lpb) (jpa, jpb) (ljpa, ljpb) (pa,pb) (va,vb) in 
   let samps = Array.make n start in 

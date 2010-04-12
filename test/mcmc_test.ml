@@ -41,6 +41,7 @@ let test_gaussian_post_uniform_proposal () =
   let nsamp = 100000 and 
       mu = Random.float 1.0 and 
       sigma = Random.float 1.0 +. 1.0 in 
+  let std_error = 10.0*.sigma/.(sqrt (float_of_int nsamp)) in
   let propose x = x +. (random_between (~-.sigma) sigma) and 
       posterior x = log_gaussian mu sigma x and 
       prior x = 0.0 and
@@ -54,13 +55,14 @@ let test_gaussian_post_uniform_proposal () =
     done;
     let mean = mean samples in 
     let std = std ~mu:mean samples in 
-      assert_equal_float ~epsrel:1e-1 ~epsabs:0.0 ~msg:"means differ" mu mean;
-      assert_equal_float ~epsrel:1e-1 ~epsabs:0.0 ~msg:"sigmas differ" sigma std
+      assert_equal_float ~epsrel:0.0 ~epsabs:std_error ~msg:"means differ" mu mean;
+      assert_equal_float ~epsrel:0.0 ~epsabs:std_error ~msg:"sigmas differ" sigma std
       
 let test_gaussian_post_left_biased_proposal () = 
   let nsamp = 100000 and 
       mu = Random.float 1.0 and 
       sigma = Random.float 1.0 +. 1.0 in 
+  let std_error = 10.0*.sigma/.(sqrt (float_of_int nsamp)) in
   let propose x = 
     if Random.float 1.0 < 0.75 then 
       x -. Random.float sigma
@@ -78,8 +80,8 @@ let test_gaussian_post_left_biased_proposal () =
     done;
     let mean = mean samples in
     let std = std ~mu:mean samples in 
-      assert_equal_float ~epsrel:2e-1 ~epsabs:0.0 ~msg:"means differ" mu mean;
-      assert_equal_float ~epsrel:2e-1 ~epsabs:0.0 ~msg:"sigmas differ" sigma std
+      assert_equal_float ~epsrel:0.0 ~epsabs:std_error ~msg:"means differ" mu mean;
+      assert_equal_float ~epsrel:0.0 ~epsabs:std_error ~msg:"sigmas differ" sigma std
 
 let test_prior_like () = 
   let nsamp = 100000 and 
@@ -188,10 +190,50 @@ let test_admixture_gaussian_cauchy () =
   let avg_lambda = Stats.meanf (fun {Mcmc.value = (lam,_,_)} -> lam) lambda_samples in 
     assert_bool "lambda small, favors cauchy" (avg_lambda > 0.5)
 
+let test_admixture_lambda_dist () = 
+  let xmax = 10.0 and 
+      xmin = -10.0 in 
+  let nsamples = 1000000 in
+  let ea = Random.float 1.0 and 
+      eb = Random.float 1.0 in 
+  let r = ea /. eb in
+  let el = (1.0 +. 2.0 *. r) /. (3.0 +. 3.0*.r) and 
+      el2 = 2.0/.(r +. 1.0)*.(r /. 4.0 +. 1.0/.12.0) in
+  let sigma_l = sqrt (el2 -. el*.el) in
+  let std_error = sigma_l /. (sqrt (float_of_int nsamples)) in
+  let log_like1 x = Stats.log_gaussian 0.0 1.0 x +. (log ea) in
+  let log_like2 x = Stats.log_gaussian 0.0 1.0 x +. (log eb) in 
+  let log_prior x = 
+    if xmin <= x && x <= xmax then 
+      ~-.(log (xmax -. xmin))
+    else
+      neg_infinity in
+  let propose x = 
+    let dx = 0.5 in 
+    let xpdx = x +. dx and 
+        xmdx = x -. dx in 
+    let xmax = min xmax xpdx and 
+        xmin = max xmin xmdx in 
+      random_between xmin xmax in
+  let log_jump_prob x y = 
+    let dx = 0.5 in 
+    let xpdx = x +. dx and 
+        xmdx = x -. dx in 
+    let xmax = min xmax xpdx and 
+        xmin = max xmin xmdx in 
+      ~-.(log (xmax -. xmin)) in
+  Mcmc.reset_counters ();
+  let samples = 
+    admixture_mcmc_array nsamples (log_like1, log_like2) (log_prior, log_prior) 
+      (propose, propose) (log_jump_prob, log_jump_prob) (0.5, 0.5) (xmax -. xmin, xmax -. xmin) (0.0, 0.0) in 
+  let lam = Stats.meanf (fun {Mcmc.value = (lam,_,_)} -> lam) samples in 
+    assert_equal_float ~epsabs:(50.0*.std_error) ~msg:"mean lambda differs" el lam
+
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
    "gaussian posterior, left-biased jump proposal" >:: test_gaussian_post_left_biased_proposal;
    "prior*like = gaussian, uniform jump" >:: test_prior_like;
    "remove_repeat" >:: test_remove_repeat;
    "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
-   "admixture gaussian vs cauchy test" >:: test_admixture_gaussian_cauchy]
+   "admixture gaussian vs cauchy test" >:: test_admixture_gaussian_cauchy;
+   "admixture lambda distribution" >:: test_admixture_lambda_dist]
