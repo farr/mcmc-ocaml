@@ -62,7 +62,7 @@ let test_gaussian_post_left_biased_proposal () =
   let nsamp = 100000 and 
       mu = Random.float 1.0 and 
       sigma = Random.float 1.0 +. 1.0 in 
-  let std_error = 10.0*.sigma/.(sqrt (float_of_int nsamp)) in
+  let std_error = 20.0*.sigma/.(sqrt (float_of_int nsamp)) in
   let propose x = 
     if Random.float 1.0 < 0.75 then 
       x -. Random.float sigma
@@ -229,6 +229,32 @@ let test_admixture_lambda_dist () =
   let lam = Stats.meanf (fun {Mcmc.value = (lam,_,_)} -> lam) samples in 
     assert_equal_float ~epsabs:(50.0*.std_error) ~msg:"mean lambda differs" el lam
 
+let test_combine_jump_proposal () = 
+  let nsamples = 1000000 in 
+  let propose_left x =
+    let xnew = x -. (Random.float 1.0) in 
+      xnew and
+      propose_right x = x +. (Random.float 1.0) in 
+  let log_jp_left x y = 
+    if y <= x && y >= x -. 1.0 then begin
+      0.0 
+    end else
+      neg_infinity and
+      log_jp_right x y = 
+    if y >= x && y <= x +. 1.0 then 
+      0.0
+    else
+      neg_infinity in
+  let (propose, log_jp) = 
+    Mcmc.combine_jump_proposals 
+      [(1.0, propose_left, log_jp_left);
+       (2.0, propose_right, log_jp_right)] in 
+  let samps = Mcmc.mcmc_array nsamples (fun x -> Stats.log_gaussian 0.0 1.0 x) (fun x -> 0.0) propose log_jp 0.0 in 
+  let mu = Stats.meanf (fun {Mcmc.value = x} -> x) samps and 
+      sigma = Stats.stdf (fun {Mcmc.value = x} -> x) samps in 
+    assert_equal_float ~epsabs:0.05 0.0 mu;
+    assert_equal_float ~epsrel:1e-2 1.0 sigma
+
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
    "gaussian posterior, left-biased jump proposal" >:: test_gaussian_post_left_biased_proposal;
@@ -236,4 +262,5 @@ let tests = "mcmc.ml tests" >:::
    "remove_repeat" >:: test_remove_repeat;
    "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
    "admixture gaussian vs cauchy test" >:: test_admixture_gaussian_cauchy;
-   "admixture lambda distribution" >:: test_admixture_lambda_dist]
+   "admixture lambda distribution" >:: test_admixture_lambda_dist;
+   "combine_jump_proposal" >:: test_combine_jump_proposal]

@@ -122,7 +122,9 @@ let rjmcmc_model_counts data =
     (!na, !nb)
 
 let log_sum_logs la lb = 
-  if la > lb then 
+  if la = neg_infinity && lb = neg_infinity then 
+    neg_infinity
+  else if la > lb then 
     let lr = lb -. la in 
       la +. (log (1.0 +. (exp lr)))
   else
@@ -164,3 +166,25 @@ let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb
         samps.(i) <- next last
     done;
     samps
+
+let combine_jump_proposals props = 
+  let ptot = List.fold_left (fun ptot (p,_,_) -> ptot +. p) 0.0 props in 
+  let props = List.map (fun (p, jp, ljp) -> (p /. ptot, jp, ljp)) props in 
+  let propose x = 
+    let jump = let rec loop prob props = 
+      match props with 
+        | (p, jp, _) :: props -> 
+            if prob < p then jp else loop (prob -. p) props
+        | _ -> raise (Failure "combine_jump_proposals: internal error: no jump proposal to select") in 
+      loop (Random.float 1.0) props in
+      jump x in 
+  let log_jp x y = 
+    let log_jp = 
+      List.fold_left 
+        (fun log_jump (p,_,ljp) -> 
+           let log_local = (log p) +. (ljp x y) in 
+             log_sum_logs log_jump log_local)
+        neg_infinity
+        props in 
+      log_jp in
+    (propose, log_jp)

@@ -182,3 +182,12 @@ val admixture_mcmc_array :
   float * float -> 
   float * float -> 
   'a * 'b -> (float * 'a * 'b) mcmc_sample array
+
+(** [combine_jump_proposals \[(p1, jump1, log_jump_prob1); ...\]]
+    combines the given list of jump proposals into a single jump
+    proposal and jump probability which chooses [jump1] with
+    probability proportional to [p1], etc.  The probabilities need not
+    be normalized. *)
+val combine_jump_proposals : 
+  (float * ('a -> 'a) * ('a -> 'a -> float)) list -> 
+  ('a -> 'a) * ('a -> 'a -> float)
