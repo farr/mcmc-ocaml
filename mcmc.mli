@@ -191,3 +191,7 @@ val admixture_mcmc_array :
 val combine_jump_proposals : 
   (float * ('a -> 'a) * ('a -> 'a -> float)) list -> 
   ('a -> 'a) * ('a -> 'a -> float)
+
+(** Returns the max-likelihood estimator for the evidence ratio
+    given an array of admixture mcmc samples. *)
+val max_like_admixture_ratio : (float * 'a * 'b) mcmc_sample array -> float

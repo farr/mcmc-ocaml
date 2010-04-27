@@ -188,3 +188,31 @@ let combine_jump_proposals props =
         props in 
       log_jp in
     (propose, log_jp)
+
+let max_like_admixture_ratio samples = 
+  let f_f' r = 
+    let sum = ref 0.0 and 
+        sum2 = ref 0.0 and 
+        nint = Array.length samples in 
+      for i = 0 to nint - 1 do 
+        let {value = (lam,_,_)} = samples.(i) in 
+        let lam_ratio = lam /. (r *. lam +. (1.0 -. lam)) in 
+          sum := !sum +. lam_ratio;
+          sum2 := !sum2 +. lam_ratio *. lam_ratio
+      done;
+      let n = float_of_int (Array.length samples) and 
+          rp1 = r +. 1.0 in
+        (1.0 /. rp1 -. !sum /. n,
+         !sum2 /. n -. 1.0 /. (rp1 *. rp1)) in 
+  let epsabs = sqrt (epsilon_float) and 
+      epsrel = sqrt (epsilon_float) in
+  let rec mlar_loop r = 
+    assert(r >= 0.0);
+    let (f, f') = f_f' r in 
+      let rnew = r -. f /. f' in 
+      let dr = abs_float (r -. rnew) in 
+        if dr <= epsabs +. 0.5*.epsrel*.(r +. (abs_float rnew)) then 
+          rnew
+        else
+          mlar_loop rnew in 
+    mlar_loop 0.0

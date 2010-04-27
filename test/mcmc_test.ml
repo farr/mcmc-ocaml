@@ -255,6 +255,24 @@ let test_combine_jump_proposal () =
     assert_equal_float ~epsabs:0.05 0.0 mu;
     assert_equal_float ~epsrel:1e-2 1.0 sigma
 
+let test_max_like_admixture_ratio () = 
+  let nsamples = 1000000 in 
+  let r = 0.5 +. Random.float 1.0 in 
+  let samples = 
+    Array.init nsamples
+      (fun _ -> 
+         let rec lam_loop () = 
+           let lam = Random.float 1.0 in 
+           let plam = r *. lam +. 1.0 -. lam in 
+           if Random.float (r +. 1.0) < plam then 
+             {Mcmc.value = (lam, (), ());
+              like_prior = {Mcmc.log_likelihood = 0.0; log_prior = 0.0}}
+           else
+             lam_loop () in 
+           lam_loop ()) in 
+  let mlr = Mcmc.max_like_admixture_ratio samples in 
+    assert_equal_float ~epsrel:1e-2 r mlr
+
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
    "gaussian posterior, left-biased jump proposal" >:: test_gaussian_post_left_biased_proposal;
@@ -263,4 +281,5 @@ let tests = "mcmc.ml tests" >:::
    "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
    "admixture gaussian vs cauchy test" >:: test_admixture_gaussian_cauchy;
    "admixture lambda distribution" >:: test_admixture_lambda_dist;
-   "combine_jump_proposal" >:: test_combine_jump_proposal]
+   "combine_jump_proposal" >:: test_combine_jump_proposal;
+   "max_like_admixture_ratio" >:: test_max_like_admixture_ratio]
