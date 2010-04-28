@@ -195,3 +195,21 @@ val combine_jump_proposals :
 (** Returns the max-likelihood estimator for the evidence ratio
     given an array of admixture mcmc samples. *)
 val max_like_admixture_ratio : (float * 'a * 'b) mcmc_sample array -> float
+
+(** [max_posterior_admixture_ratio ?dlog_prior ?ddlog_prior samples]
+    returns the maximum posterior estimator of the evidence ratio in
+    the admixture mcmc producing [samples].  [dlog_prior] is the
+    derivative of the log of the prior on the evidence ratio;
+    [ddlog_prior] is the second derivative of the prior.  By default,
+    these are based on the prior for the ratio of two uniform random
+    variables. *)
+val max_posterior_admixture_ratio : 
+  ?dlog_prior : (float -> float) -> 
+  ?ddlog_prior : (float -> float) -> 
+  (float * 'a * 'b) mcmc_sample array -> float
+
+(** [uniform_wrapping xmin xmax dx x] returns a uniform random number
+    within a range of size [dx] about the point [x], wrapping the
+    value if it becomes smaller than [xmin] or greater than [xmax].
+    ([dx] must be smaller than the range [xmax -. xmin].) *)
+val uniform_wrapping : float -> float -> float -> float -> float

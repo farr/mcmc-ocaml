@@ -193,12 +193,14 @@ let test_admixture_gaussian_cauchy () =
 let test_admixture_lambda_dist () = 
   let xmax = 10.0 and 
       xmin = -10.0 in 
+    assert(xmax -. xmin > 1.0); (* Needed for jump proposal to work out. *)
   let nsamples = 1000000 in
   let ea = Random.float 1.0 and 
       eb = Random.float 1.0 in 
   let r = ea /. eb in
   let el = (1.0 +. 2.0 *. r) /. (3.0 +. 3.0*.r) and 
       el2 = 2.0/.(r +. 1.0)*.(r /. 4.0 +. 1.0/.12.0) in
+    (* Printf.printf "\nRatio = %g, <l> = %g\n%!" r el; *)
   let sigma_l = sqrt (el2 -. el*.el) in
   let std_error = sigma_l /. (sqrt (float_of_int nsamples)) in
   let log_like1 x = Stats.log_gaussian 0.0 1.0 x +. (log ea) in
@@ -208,26 +210,23 @@ let test_admixture_lambda_dist () =
       ~-.(log (xmax -. xmin))
     else
       neg_infinity in
-  let propose x = 
-    let dx = 0.5 in 
-    let xpdx = x +. dx and 
-        xmdx = x -. dx in 
-    let xmax = min xmax xpdx and 
-        xmin = max xmin xmdx in 
-      random_between xmin xmax in
-  let log_jump_prob x y = 
-    let dx = 0.5 in 
-    let xpdx = x +. dx and 
-        xmdx = x -. dx in 
-    let xmax = min xmax xpdx and 
-        xmin = max xmin xmdx in 
-      ~-.(log (xmax -. xmin)) in
+  let propose x = Mcmc.uniform_wrapping xmin xmax 1.0 x in
+  let log_jump_prob x y = 0.0 in
   Mcmc.reset_counters ();
   let samples = 
     admixture_mcmc_array nsamples (log_like1, log_like2) (log_prior, log_prior) 
       (propose, propose) (log_jump_prob, log_jump_prob) (0.5, 0.5) (xmax -. xmin, xmax -. xmin) (0.0, 0.0) in 
-  let lam = Stats.meanf (fun {Mcmc.value = (lam,_,_)} -> lam) samples in 
-    assert_equal_float ~epsabs:(50.0*.std_error) ~msg:"mean lambda differs" el lam
+  (* let out = open_out "samples.dat" in  *)
+  (*   Array.iter (fun x -> let {value = (lam,x,y)} = x in Printf.fprintf out "%g %g %g\n" lam x y) samples; *)
+  (*   close_out out; *)
+  let lam = Stats.meanf (fun {Mcmc.value = (lam,_,_)} -> lam) samples in
+  (* let mlr = (Mcmc.max_like_admixture_ratio samples) in *)
+  (*   Printf.printf "Mean lam = %g\n" lam; *)
+  (*   Printf.printf "r from mean = %g\n" (1.0 /. (2.0 -. 3.0*.lam) -. 1.0); *)
+  (*   Printf.printf "max like r = %g\n" mlr; *)
+  (*   let (na,nr) = Mcmc.get_counters () in *)
+  (*   Printf.printf "accepted %d steps out of %d (ratio = %g)\n" na (na+nr) ((float_of_int na) /. (float_of_int (na+nr))); *)
+    assert_equal_float ~epsabs:(10.0*.std_error) ~msg:"mean lambda differs" el lam
 
 let test_combine_jump_proposal () = 
   let nsamples = 1000000 in 
@@ -245,8 +244,8 @@ let test_combine_jump_proposal () =
       0.0
     else
       neg_infinity in
-  let (propose, log_jp) = 
-    Mcmc.combine_jump_proposals 
+  let (propose, log_jp) =  
+   Mcmc.combine_jump_proposals 
       [(1.0, propose_left, log_jp_left);
        (2.0, propose_right, log_jp_right)] in 
   let samps = Mcmc.mcmc_array nsamples (fun x -> Stats.log_gaussian 0.0 1.0 x) (fun x -> 0.0) propose log_jp 0.0 in 
@@ -271,7 +270,7 @@ let test_max_like_admixture_ratio () =
              lam_loop () in 
            lam_loop ()) in 
   let mlr = Mcmc.max_like_admixture_ratio samples in 
-    assert_equal_float ~epsrel:1e-2 r mlr
+    assert_equal_float ~epsrel:5e-2 r mlr
 
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
