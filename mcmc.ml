@@ -216,6 +216,15 @@ let dll_ddll samples r =
       (1.0 /. rp1 -. !sum /. n,
        !sum2 /. n -. 1.0 /. (rp1 *. rp1))   
 
+let mean_lambda_ratio samples = 
+  let lam = Stats.meanf (fun x -> let {value = (lam,_,_)} = x in lam) samples in 
+    if lam > (2.0/.3.0) then 
+      infinity
+    else if lam < 1.0 /. 3.0 then 
+      0.0
+    else
+      1.0 /. (2.0 -. 3.0*.lam) -. 1.0
+
 let max_like_admixture_ratio samples = 
   let epsabs = sqrt (epsilon_float) and 
       epsrel = sqrt (epsilon_float) in

@@ -226,7 +226,7 @@ let test_admixture_lambda_dist () =
   (*   Printf.printf "max like r = %g\n" mlr; *)
   (*   let (na,nr) = Mcmc.get_counters () in *)
   (*   Printf.printf "accepted %d steps out of %d (ratio = %g)\n" na (na+nr) ((float_of_int na) /. (float_of_int (na+nr))); *)
-    assert_equal_float ~epsabs:(10.0*.std_error) ~msg:"mean lambda differs" el lam
+    assert_equal_float ~epsabs:(50.0*.std_error) ~msg:"mean lambda differs" el lam
 
 let test_combine_jump_proposal () = 
   let nsamples = 1000000 in 
@@ -254,7 +254,7 @@ let test_combine_jump_proposal () =
     assert_equal_float ~epsabs:0.05 0.0 mu;
     assert_equal_float ~epsrel:1e-2 1.0 sigma
 
-let test_max_like_admixture_ratio () = 
+let test_max_like_and_mean_lambda_admixture_ratio () = 
   let nsamples = 1000000 in 
   let r = 0.5 +. Random.float 1.0 in 
   let samples = 
@@ -270,7 +270,9 @@ let test_max_like_admixture_ratio () =
              lam_loop () in 
            lam_loop ()) in 
   let mlr = Mcmc.max_like_admixture_ratio samples in 
-    assert_equal_float ~epsrel:5e-2 r mlr
+  let mean_lam_ratio = Mcmc.mean_lambda_ratio samples in 
+    assert_equal_float ~epsrel:5e-2 r mlr;
+    assert_equal_float ~epsrel:5e-2 r mean_lam_ratio
 
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
@@ -281,4 +283,4 @@ let tests = "mcmc.ml tests" >:::
    "admixture gaussian vs cauchy test" >:: test_admixture_gaussian_cauchy;
    "admixture lambda distribution" >:: test_admixture_lambda_dist;
    "combine_jump_proposal" >:: test_combine_jump_proposal;
-   "max_like_admixture_ratio" >:: test_max_like_admixture_ratio]
+   "max_like_admixture_ratio and mean_lambda_ratio" >:: test_max_like_and_mean_lambda_admixture_ratio]
