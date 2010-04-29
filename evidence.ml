@@ -148,30 +148,46 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
               List.rev (x :: collected_samples)
             else
               collect_samples_loop (x :: collected_samples) ys in 
-      collect_samples_loop [] samps
+      collect_samples_loop [] (List.fast_sort compare_inverse_like (Array.to_list samps))
+
+  let mean_inv_like samps = 
+    let tot_il = 
+      List.fold_left
+        (fun il samp -> 
+           il +. (exp (~-.(log_likelihood samp))))
+        0.0
+        samps in 
+      tot_il /. (float_of_int (List.length samps))
+
+  let remove_dups_rev l = 
+    let rec remove_dups_loop removed = function 
+      | [] -> removed
+      | [x] -> x :: removed
+      | x :: (y :: _ as ys) -> 
+          if log_likelihood x = log_likelihood y then 
+            remove_dups_loop removed ys
+          else
+            remove_dups_loop (x :: removed) ys in 
+      remove_dups_loop [] l
 
   let evidence_lebesgue ?(n = 64) ?(eps = 0.1) samples = 
-    let samples_list = array_to_list_remove_dups samples in
-    let samps = collect_samples_up_to_eps eps (List.fast_sort compare_inverse_like samples_list) in 
-    let (low,high) = Kd.bounds_of_objects samps in 
-    let sub_vs = collect_subvolumes n (kd_tree_of_samples samples low high) in 
+    let samples = collect_samples_up_to_eps eps samples in 
+    let mean_il = mean_inv_like samples in 
+    let samples = remove_dups_rev samples in 
+    let (low,high) = Kd.bounds_of_objects samples in 
+    let t = Kd.tree_of_objects samples low high in 
+    let vols = collect_subvolumes n t in 
     let prior_mass = 
       List.fold_left
-        (fun pm c -> 
-           match c with 
-             | Kd.Cell(objs, _, _, _, _) ->
+        (fun pm cell -> 
+           match cell with 
+             | Kd.Cell(objs, _, _, _, _) -> 
                  let (low,high) = Kd.bounds_of_objects objs in 
                  let vol = Kd.bounds_volume low high and 
-                     lp = median_sample log_prior objs in 
-                   pm +. vol*.(exp lp)
-             | _ -> raise (Failure "evidence_lebesque: bad cell in integral accumulation of prior mass"))
+                     prior = exp (median_sample log_prior objs) in 
+                   pm +. prior*.vol
+             | _ -> raise (Failure "prior_mass in evidence_lebesgue: bad cell"))
         0.0
-        sub_vs and 
-        inv_l = 
-      List.fold_left
-        (fun inv_l samp -> inv_l +. (exp (~-.(log_likelihood samp))))
-        0.0 
-        samps and 
-        n = float_of_int (List.length samps) in 
-      n*.prior_mass/.inv_l    
+        vols in 
+      prior_mass /. mean_il
 end
