@@ -66,6 +66,7 @@ type ('a, 'b) rjmcmc_value =
 type ('a, 'b) rjmcmc_sample = ('a, 'b) rjmcmc_value mcmc_sample
 
 let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) (ljpintoa, ljpintob) (pa,pb) = 
+  assert(pa +. pb -. 1.0 < sqrt epsilon_float);
   let jump_proposal = function 
     | A(a) -> 
         if Random.float 1.0 < pa then 
@@ -132,6 +133,7 @@ let log_sum_logs la lb =
       lb +. (log (1.0 +. (exp lr)))
 
 let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (va, vb) = 
+  assert(abs_float (pa +. pb -. 1.0) < sqrt epsilon_float);
   let log_pa = log pa and 
       log_pb = log pb and
       log_va = log va and 
@@ -150,6 +152,7 @@ let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (p
     make_mcmc_sampler log_likelihood log_prior propose log_jump_prob
 
 let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (va, vb) (a, b) = 
+  assert(abs_float (pa +. pb -. 1.0) < sqrt epsilon_float);
   let lam = Random.float 1.0 in 
   let start = 
     {value = (lam, a, b);
@@ -228,7 +231,7 @@ let mean_lambda_ratio samples =
 let max_like_admixture_ratio samples = 
   let epsabs = sqrt (epsilon_float) and 
       epsrel = sqrt (epsilon_float) in
-    newton_nonnegative epsabs epsrel (fun r -> dll_ddll samples r) 0.0
+    newton_nonnegative epsabs epsrel (fun r -> dll_ddll samples r) (mean_lambda_ratio samples)
 
 let dlog_prior_uniform r = 
   if r <= 1.0 then 0.0 else -2.0 /. r
@@ -249,7 +252,7 @@ let max_posterior_admixture_ratio
     newton_nonnegative epsabs epsrel f_f' 0.0
 
 let uniform_wrapping xmin xmax dx x = 
-  assert(dx < xmax -. xmin);
+  let dx = if dx > xmax -. xmin then xmax -. xmin else dx in 
   let xnew = x +. (Random.float 1.0 -. 0.5)*.dx in 
     if xnew > xmax then 
       xmin +. (xnew -. xmax)
