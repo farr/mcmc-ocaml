@@ -34,8 +34,7 @@ module type EVIDENCE = sig
 
   (** Integrate evidence using Lebesque integral of 1/L, within the
   rectangular parameter region between the given arrays.  *)
-  val evidence_lebesgue : ?n : int -> ?eps : float -> ?eql : (params -> params -> bool) -> 
-    sample array -> float
+  val evidence_lebesgue : ?n : int -> ?eps : float -> sample array -> float
 end
 
 module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
@@ -98,8 +97,30 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
       else 
         f (List.nth ssamp (n/2))
       
+  let compare_samples s1 s2 = 
+    let {Mcmc.value = v1} = s1 and 
+        {Mcmc.value = v2} = s2 in 
+      Pervasives.compare (MO.to_coords v1) (MO.to_coords v2)
+
+  let rev_remove_dups comp l = 
+    let rec rev_remove_dups_loop removed remaining = 
+      match remaining with 
+        | [] -> removed
+        | [x] -> x :: removed
+        | x :: (y :: _ as ys) -> 
+            if comp x y = 0 then 
+              rev_remove_dups_loop removed ys
+            else
+              rev_remove_dups_loop (x :: removed) ys in
+      rev_remove_dups_loop [] l
+
+  let array_to_list_remove_dups samples = 
+    let l = Array.to_list samples in 
+    let lsort = List.sort compare_samples l in 
+      rev_remove_dups compare_samples lsort
+
   let evidence_direct ?(n = 64) samples = 
-    let lsamples = Array.to_list samples in 
+    let lsamples = array_to_list_remove_dups samples in
     let (low,high) = Kd.bounds_of_objects lsamples in 
     let sub_vs = collect_subvolumes n (Kd.tree_of_objects lsamples low high) in 
       List.fold_left
@@ -129,9 +150,8 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
               collect_samples_loop (x :: collected_samples) ys in 
       collect_samples_loop [] samps
 
-  let evidence_lebesgue ?(n = 64) ?(eps = 0.1) ?(eql = (=) ) samples = 
-    let samples = Mcmc.remove_repeat_samples eql samples in 
-    let samples_list = Array.to_list samples in 
+  let evidence_lebesgue ?(n = 64) ?(eps = 0.1) samples = 
+    let samples_list = array_to_list_remove_dups samples in
     let samps = collect_samples_up_to_eps eps (List.fast_sort compare_inverse_like samples_list) in 
     let (low,high) = Kd.bounds_of_objects samps in 
     let sub_vs = collect_subvolumes n (kd_tree_of_samples samples low high) in 
