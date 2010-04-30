@@ -192,32 +192,52 @@ let combine_jump_proposals props =
       log_jp in
     (propose, log_jp)
 
-let newton_nonnegative epsabs epsrel f_f' x0 = 
-  let rec newton_loop x = 
-    assert(x >= 0.0);
-    let (f, f') = f_f' x in 
-    let xnew = x -. f /. f' in 
-    let dx = abs_float (x -. xnew) in 
-      if dx < epsabs +. 0.5*.epsrel*.(x +. (abs_float xnew)) then 
-        xnew
-      else 
-        newton_loop xnew in 
-    newton_loop x0
+let rec bisect_root epsf epsabs epsrel f x0 x1 = 
+  let rec bisect_loop fx0 fx1 x0 x1 = 
+    let x = 0.5*.(x0 +. x1) and
+        dx = abs_float (x1 -. x0) and 
+        xmag = 0.5*.(abs_float x1 +. (abs_float x0)) in
+      if dx <= epsabs +. epsrel*.xmag then 
+        x
+      else
+        let fx = f x in 
+          if abs_float fx < epsf then 
+            x
+          else if fx0*.fx < 0.0 then 
+            bisect_loop fx0 fx x0 x
+          else if fx*.fx1 < 0.0 then 
+            bisect_loop fx fx1 x x1
+          else
+            raise (Failure "bisect_root (loop): lost bounds on root") in 
+  let fx0 = f x0 and 
+      fx1 = f x1 in 
+    if fx0 *. fx1 > 0.0 then 
+      raise (Failure "bisect_root: root not bounded by initial brackets")
+    else if fx0 = 0.0 then 
+      x0
+    else if fx1 = 0.0 then 
+      x1
+    else
+      bisect_loop fx0 fx1 x0 x1
 
-let dll_ddll samples r = 
+let find_increasing_bracket f x0 x1 = 
+  let rec inc_bracket_loop fx0 fx1 x1 = 
+    if fx0 *. fx1 < 0.0 then 
+      x1
+    else
+      let x1 = 2.0*.x1 in 
+      inc_bracket_loop fx0 (f x1) x1 in
+    inc_bracket_loop (f x0) (f x1) x1
+
+let dlog_like samples r = 
   let sum = ref 0.0 and 
-      sum2 = ref 0.0 and 
       nint = Array.length samples in 
     for i = 0 to nint - 1 do 
       let {value = (lam,_,_)} = samples.(i) in 
-      let lam_ratio = lam /. (r *. lam +. (1.0 -. lam)) in 
-        sum := !sum +. lam_ratio;
-        sum2 := !sum2 +. lam_ratio *. lam_ratio
+      sum := !sum +. lam /. (r *. lam +. 1.0 -. lam)
     done;
-    let n = float_of_int (Array.length samples) and 
-        rp1 = r +. 1.0 in
-      (1.0 /. rp1 -. !sum /. n,
-       !sum2 /. n -. 1.0 /. (rp1 *. rp1))   
+    let n = float_of_int nint in 
+      1.0 /. (r +. 1.0) -. !sum /. n
 
 let mean_lambda_ratio samples = 
   let lam = Stats.meanf (fun x -> let {value = (lam,_,_)} = x in lam) samples in 
@@ -230,14 +250,11 @@ let mean_lambda_ratio samples =
 
 let max_like_admixture_ratio samples = 
   let epsabs = sqrt (epsilon_float) and 
-      epsrel = sqrt (epsilon_float) in
-  let r0 = mean_lambda_ratio samples in 
-  let r0 = match classify_float r0 with 
-    | FP_normal -> r0
-    | FP_infinite -> 10.0
-    | FP_zero -> 0.0
-    | _ -> 0.0 in
-    newton_nonnegative epsabs epsrel (fun r -> dll_ddll samples r) r0
+      epsrel = sqrt (epsilon_float) and 
+      epsf = 0.0 in
+  let f r = dlog_like samples r in 
+  let r1 = find_increasing_bracket f 0.0 1.0 in 
+    bisect_root epsf epsabs epsrel f 0.0 r1
 
 let dlog_prior_uniform r = 
   if r <= 1.0 then 0.0 else -2.0 /. r
@@ -250,12 +267,11 @@ let max_posterior_admixture_ratio
     ?(ddlog_prior = ddlog_prior_uniform)
     samples = 
   let epsabs = sqrt epsilon_float and 
-      epsrel = sqrt epsilon_float in 
-  let f_f' r = 
-    let (dll,ddll) = dll_ddll samples r in 
-      (dll +. dlog_prior r,
-       ddll +. ddlog_prior r) in 
-    newton_nonnegative epsabs epsrel f_f' 0.0
+      epsrel = sqrt epsilon_float and
+      epsf = sqrt epsilon_float in
+  let f r = dlog_like samples r +. dlog_prior r in 
+  let r1 = find_increasing_bracket f 0.0 1.0 in 
+    bisect_root epsf epsabs epsrel f 0.0 r1
 
 let uniform_wrapping xmin xmax dx x = 
   let dx = if dx > xmax -. xmin then xmax -. xmin else dx in 

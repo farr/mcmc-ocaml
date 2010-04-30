@@ -69,7 +69,7 @@ let test_evidence_harmonic_mean_1d () =
   let samples = 
     Mcmc.mcmc_array 1000000 log_like log_prior propose log_jp [|mu|] in 
   let ev = Ev.evidence_harmonic_mean samples in 
-    assert_equal_float ~epsabs:0.5 ~msg:"evidence not 1 for gaussian posterior" 1.0 ev
+    assert_equal_float ~epsabs:0.9 ~msg:"evidence not 1 for gaussian posterior" 1.0 ev
 
 let test_evidence_lebesgue_2d () = 
   let mu = Array.init 2 (fun _ -> Random.float 1.0) and 
@@ -82,5 +82,5 @@ let test_evidence_lebesgue_2d () =
 
 let tests = "evidence.ml tests" >:::
   ["evidence_direct in 2D" >:: test_evidence_direct_2d;
-   "evidence_harmonic_mean in 2D" >:: test_evidence_harmonic_mean_1d;
+   "evidence_harmonic_mean in 1D" >:: test_evidence_harmonic_mean_1d;
    "evidence_lebesgue in 2D" >:: test_evidence_lebesgue_2d]
