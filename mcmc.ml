@@ -231,7 +231,13 @@ let mean_lambda_ratio samples =
 let max_like_admixture_ratio samples = 
   let epsabs = sqrt (epsilon_float) and 
       epsrel = sqrt (epsilon_float) in
-    newton_nonnegative epsabs epsrel (fun r -> dll_ddll samples r) (mean_lambda_ratio samples)
+  let r0 = mean_lambda_ratio samples in 
+  let r0 = match classify_float r0 with 
+    | FP_normal -> r0
+    | FP_infinite -> 10.0
+    | FP_zero -> 0.0
+    | _ -> 0.0 in
+    newton_nonnegative epsabs epsrel (fun r -> dll_ddll samples r) r0
 
 let dlog_prior_uniform r = 
   if r <= 1.0 then 0.0 else -2.0 /. r
