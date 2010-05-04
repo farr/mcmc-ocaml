@@ -222,7 +222,7 @@ let rec bisect_root epsf epsabs epsrel f x0 x1 =
 
 let find_increasing_bracket f x0 x1 = 
   let rec inc_bracket_loop fx0 fx1 x1 = 
-    if fx0 *. fx1 < 0.0 then 
+    if fx0 *. fx1 <= 0.0 then 
       x1
     else
       let x1 = 2.0*.x1 in 
@@ -274,11 +274,12 @@ let max_posterior_admixture_ratio
     bisect_root epsf epsabs epsrel f 0.0 r1
 
 let uniform_wrapping xmin xmax dx x = 
-  let dx = if dx > xmax -. xmin then xmax -. xmin else dx in 
-  let xnew = x +. (Random.float 1.0 -. 0.5)*.dx in 
+  let delta_x = (Random.float 1.0 -. 0.5)*.dx in 
+  let delta_x = mod_float delta_x (xmax -. xmin) in 
+  let xnew = x +. delta_x in 
     if xnew > xmax then 
       xmin +. (xnew -. xmax)
     else if xnew < xmin then 
       xmax -. (xmin -. xnew)
-    else 
+    else
       xnew

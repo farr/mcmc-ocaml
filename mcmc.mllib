@@ -1,5 +1,8 @@
 Evidence
 Interpolate_pdf
 Kd_tree
+Lex_floats
 Mcmc
+Parse_floats
+Read_write
 Stats

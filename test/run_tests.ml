@@ -5,6 +5,7 @@ let tests = "all denest tests" >:::
    "interpolate_pdf.ml tests" >: Interpolate_pdf_test.tests;
    "kd_tree.ml tests" >: Kd_tree_test.tests;
    "mcmc.ml tests" >: Mcmc_test.tests;
+   "read_write.ml tests" >: Read_write_test.tests;
    "stats.ml tests" >: Stats_test.tests]
 
 let _ = 
