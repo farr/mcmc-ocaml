@@ -105,7 +105,7 @@ let jump_proposal sigmas state =
         let new_mu = Array.copy mu and 
             new_sigma = Array.copy sigma in 
           for i = 0 to Array.length new_mu - 1 do 
-            let dx = sigmas.(i) /. (sqrt (float_of_int !nsamp)) in 
+            let dx = sigmas.(i) /. (sqrt (float_of_int !nsamp)*.(float_of_int !ndim)) in 
               new_mu.(i) <- Mcmc.uniform_wrapping !mu_min !mu_max dx new_mu.(i);
               new_sigma.(i) <- Mcmc.uniform_wrapping !sigma_min !sigma_max dx new_sigma.(i)
           done;
@@ -173,14 +173,12 @@ let sample_std samples =
     done;
     std
 
-let do_mcmc out log_like nmcmc_samp samples = 
-  let sigmas = sample_std samples in
-  let jump_proposal state = jump_proposal sigmas state in
+let do_mcmc mu sigma out log_like nmcmc_samp samples = 
+  let jump_proposal state = jump_proposal sigma state in
   let log_like state = log_like samples state in 
   let samples = 
     Mcmc.mcmc_array nmcmc_samp log_like log_prior jump_proposal log_jump_prob 
-      [|Stats.multi_mean samples;
-        Stats.multi_std samples|] in 
+      [|mu; sigma|] in 
     for i = 0 to nmcmc_samp - 1 do 
       let {Mcmc.value = samp} = samples.(i) in 
         match samp with 
@@ -189,15 +187,15 @@ let do_mcmc out log_like nmcmc_samp samples =
     done;
     samples
 
-let gaussian_mcmc n samples = 
+let gaussian_mcmc mu sigma n samples = 
   let out = open_out !gauss_mcmc_fname in 
-  let samples = do_mcmc out log_like_gaussian n samples in 
+  let samples = do_mcmc mu sigma out log_like_gaussian n samples in 
     close_out out;
     samples
 
-let cauchy_mcmc n samples = 
+let cauchy_mcmc mu sigma n samples = 
   let out = open_out !cauchy_mcmc_fname in 
-  let samples = do_mcmc out log_like_cauchy n samples in 
+  let samples = do_mcmc mu sigma out log_like_cauchy n samples in 
     close_out out;
     samples
 
@@ -212,14 +210,12 @@ let array_subsample reduction_factor arr =
     done;
     res
 
-let rjmcmc n gsamp csamp data = 
+let rjmcmc mu sigma n gsamp csamp data = 
   let (low,high) = param_bounds () in 
   let gsamp = Array.map (fun {Mcmc.value = x} -> x) (array_subsample !interp_reduce gsamp) and 
       csamp = Array.map (fun {Mcmc.value = x} -> x) (array_subsample !interp_reduce csamp) in 
   let gpdf = Interp.make gsamp low high and 
-      cpdf = Interp.make csamp low high and 
-      mu = Stats.multi_mean data and 
-      sigma = Stats.multi_std data in
+      cpdf = Interp.make csamp low high in
   let log_like_gaussian state = log_like_gaussian data state and 
       log_like_cauchy state = log_like_cauchy data state in
   let sigmas = sample_std data in
@@ -252,11 +248,9 @@ let rjmcmc n gsamp csamp data =
     close_out out;
     samples
 
-let admixture_mcmc n data = 
+let admixture_mcmc mu sigma n data = 
   let log_like_gaussian state = log_like_gaussian data state and 
       log_like_cauchy state = log_like_cauchy data state in 
-  let mu = Stats.multi_mean data and 
-      sigma = Stats.multi_std data in
   let vol = (!mu_max -. !mu_min)**(float_of_int !ndim)*.(!sigma_max -. !sigma_min)**(float_of_int !ndim) in
   let samples = 
     Mcmc.admixture_mcmc_array
@@ -290,16 +284,16 @@ let _ =
   let data = draw_samples mu sigma in 
   if !randmcmc then randomize ();
   Mcmc.reset_counters ();
-  let gmcmc = gaussian_mcmc !nmcmc data in
+  let gmcmc = gaussian_mcmc mu sigma !nmcmc data in
   let (gna, gnr) = Mcmc.get_counters () in 
   Mcmc.reset_counters ();
-  let cmcmc = cauchy_mcmc !nmcmc data in 
+  let cmcmc = cauchy_mcmc mu sigma !nmcmc data in 
   let (cna, cnr) = Mcmc.get_counters () in
   Mcmc.reset_counters ();
-  let rjmcmc = rjmcmc !nmcmc gmcmc cmcmc data in 
+  let rjmcmc = rjmcmc mu sigma !nmcmc gmcmc cmcmc data in 
   let (rjna, rjnr) = Mcmc.get_counters () in
   Mcmc.reset_counters ();
-  let admcmc = admixture_mcmc !nmcmc data in 
+  let admcmc = admixture_mcmc mu sigma !nmcmc data in 
   let (adna, adnr) = Mcmc.get_counters () in
   let (ng, nc) = Mcmc.rjmcmc_model_counts rjmcmc in 
   let lam = Stats.meanf (fun {Mcmc.value = (lam,_,_)} -> lam) admcmc in 
@@ -314,15 +308,15 @@ let _ =
       Mcmc.max_like_admixture_ratio admcmc 
     with 
       | Assert_failure(_) -> 0.0 /. 0.0 in
-    Printf.printf "Accepted %g in gaussian, %g in cauchy MCMC.\n" 
+    Printf.printf "Accepted %g in gaussian, %g in cauchy MCMC.\n%!" 
       (accepted_frac gna gnr) (accepted_frac cna cnr);
-    Printf.printf "Reverse jump: n_gauss = %d, n_cauchy = %d, ratio = %g, accepted frac = %g\n"
+    Printf.printf "Reverse jump: n_gauss = %d, n_cauchy = %d, ratio = %g, accepted frac = %g\n%!"
       ng nc ((float_of_int ng)/.(float_of_int nc)) (accepted_frac rjna rjnr);
-    Printf.printf "Mean lambda = %g, for ratio of %g, max_like ratio of %g, accepted frac = %g\n" 
+    Printf.printf "Mean lambda = %g, for ratio of %g, max_like ratio of %g, accepted frac = %g\n%!" 
       lam (Mcmc.mean_lambda_ratio admcmc) max_like_ratio (accepted_frac adna adnr);
-    Printf.printf "Direct evidence: gauss = %g, cauchy = %g, ratio = %g\n"
+    Printf.printf "Direct evidence: gauss = %g, cauchy = %g, ratio = %g\n%!"
       gevdr cevdr (gevdr/.cevdr);
-    Printf.printf "Harmonic mean evidence: gauss = %g, cauchy = %g, ratio = %g\n" 
+    Printf.printf "Harmonic mean evidence: gauss = %g, cauchy = %g, ratio = %g\n%!" 
       gevhm cevhm (gevhm/.cevhm);
-    Printf.printf "Lebesgue evidence: gauss = %g, cauchy = %g, ratio = %g\n"
+    Printf.printf "Lebesgue evidence: gauss = %g, cauchy = %g, ratio = %g\n%!"
       gevlb cevlb (gevlb/.cevlb)
