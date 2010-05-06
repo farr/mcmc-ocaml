@@ -132,44 +132,6 @@ let log_sum_logs la lb =
     let lr = la -. lb in 
       lb +. (log (1.0 +. (exp lr)))
 
-let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (va, vb) = 
-  assert(abs_float (pa +. pb -. 1.0) < sqrt epsilon_float);
-  let log_pa = log pa and 
-      log_pb = log pb and
-      log_va = log va and 
-      log_vb = log vb in 
-  let log_likelihood (lam,a,b) = 
-    (* Likelihood includes priors, too, since not multiplicative. *)
-    let lpa = ((log lam) +. (lla a) +. (lpa a) +. log_pa -. log_vb) and 
-        lpb = ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. log_pb -. log_va) in
-    let lp = log_sum_logs lpa lpb in 
-      lp and
-      log_prior _ = 0.0 and 
-      propose (lam,a,b) = 
-    (Random.float 1.0, jpa a, jpb b) and 
-      log_jump_prob (_,a,b) (_, a', b') = 
-    (ljpa a a') +. (ljpb b b') in 
-    make_mcmc_sampler log_likelihood log_prior propose log_jump_prob
-
-let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (va, vb) (a, b) = 
-  assert(abs_float (pa +. pb -. 1.0) < sqrt epsilon_float);
-  let lam = Random.float 1.0 in 
-  let start = 
-    {value = (lam, a, b);
-     like_prior = 
-        {log_likelihood = 
-            log_sum_logs 
-              ((log lam) +. (lla a) +. (lpa a) +. (log pa) -. (log vb))
-              ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. (log pb) -. (log va));
-         log_prior = 0.0}} in 
-  let next = make_admixture_mcmc_sampler (lla,llb) (lpa,lpb) (jpa, jpb) (ljpa, ljpb) (pa,pb) (va,vb) in 
-  let samps = Array.make n start in 
-    for i = 1 to n - 1 do 
-      let last = samps.(i-1) in 
-        samps.(i) <- next last
-    done;
-    samps
-
 let combine_jump_proposals props = 
   let ptot = List.fold_left (fun ptot (p,_,_) -> ptot +. p) 0.0 props in 
   let props = List.map (fun (p, jp, ljp) -> (p /. ptot, jp, ljp)) props in 
@@ -191,87 +153,6 @@ let combine_jump_proposals props =
         props in 
       log_jp in
     (propose, log_jp)
-
-let rec bisect_root epsf epsabs epsrel f x0 x1 = 
-  let rec bisect_loop fx0 fx1 x0 x1 = 
-    let x = 0.5*.(x0 +. x1) and
-        dx = abs_float (x1 -. x0) and 
-        xmag = 0.5*.(abs_float x1 +. (abs_float x0)) in
-      if dx <= epsabs +. epsrel*.xmag then 
-        x
-      else
-        let fx = f x in 
-          if abs_float fx < epsf then 
-            x
-          else if fx0*.fx < 0.0 then 
-            bisect_loop fx0 fx x0 x
-          else if fx*.fx1 < 0.0 then 
-            bisect_loop fx fx1 x x1
-          else
-            raise (Failure "bisect_root (loop): lost bounds on root") in 
-  let fx0 = f x0 and 
-      fx1 = f x1 in 
-    if fx0 *. fx1 > 0.0 then 
-      raise (Failure "bisect_root: root not bounded by initial brackets")
-    else if fx0 = 0.0 then 
-      x0
-    else if fx1 = 0.0 then 
-      x1
-    else
-      bisect_loop fx0 fx1 x0 x1
-
-let find_increasing_bracket f x0 x1 = 
-  let rec inc_bracket_loop fx0 fx1 x1 = 
-    if fx0 *. fx1 <= 0.0 then 
-      x1
-    else
-      let x1 = 2.0*.x1 in 
-      inc_bracket_loop fx0 (f x1) x1 in
-    inc_bracket_loop (f x0) (f x1) x1
-
-let dlog_like samples r = 
-  let sum = ref 0.0 and 
-      nint = Array.length samples in 
-    for i = 0 to nint - 1 do 
-      let {value = (lam,_,_)} = samples.(i) in 
-      sum := !sum +. lam /. (r *. lam +. 1.0 -. lam)
-    done;
-    let n = float_of_int nint in 
-      1.0 /. (r +. 1.0) -. !sum /. n
-
-let mean_lambda_ratio samples = 
-  let lam = Stats.meanf (fun x -> let {value = (lam,_,_)} = x in lam) samples in 
-    if lam > (2.0/.3.0) then 
-      infinity
-    else if lam < 1.0 /. 3.0 then 
-      0.0
-    else
-      1.0 /. (2.0 -. 3.0*.lam) -. 1.0
-
-let max_like_admixture_ratio samples = 
-  let epsabs = sqrt (epsilon_float) and 
-      epsrel = sqrt (epsilon_float) and 
-      epsf = 0.0 in
-  let f r = dlog_like samples r in 
-  let r1 = find_increasing_bracket f 0.0 1.0 in 
-    bisect_root epsf epsabs epsrel f 0.0 r1
-
-let dlog_prior_uniform r = 
-  if r <= 1.0 then 0.0 else -2.0 /. r
-
-let ddlog_prior_uniform r = 
-  if r <= 1.0 then 0.0 else 2.0 /. (r *. r)
-
-let max_posterior_admixture_ratio 
-    ?(dlog_prior = dlog_prior_uniform)
-    ?(ddlog_prior = ddlog_prior_uniform)
-    samples = 
-  let epsabs = sqrt epsilon_float and 
-      epsrel = sqrt epsilon_float and
-      epsf = sqrt epsilon_float in
-  let f r = dlog_like samples r +. dlog_prior r in 
-  let r1 = find_increasing_bracket f 0.0 1.0 in 
-    bisect_root epsf epsabs epsrel f 0.0 r1
 
 let uniform_wrapping xmin xmax dx x = 
   let delta_x = (Random.float 1.0 -. 0.5)*.dx in 
