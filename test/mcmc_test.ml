@@ -165,11 +165,47 @@ let test_combine_jump_proposal () =
    Mcmc.combine_jump_proposals 
       [(1.0, propose_left, log_jp_left);
        (2.0, propose_right, log_jp_right)] in 
-  let samps = Mcmc.mcmc_array nsamples (fun x -> Stats.log_gaussian 0.0 1.0 x) (fun x -> 0.0) propose log_jp 0.0 in 
+  let samps = 
+    Mcmc.mcmc_array 
+      nsamples 
+      (fun x -> Stats.log_gaussian 0.0 1.0 x)
+      (fun x -> 0.0)
+      propose
+      log_jp
+      0.0 in 
   let mu = Stats.meanf (fun {Mcmc.value = x} -> x) samps and 
       sigma = Stats.stdf (fun {Mcmc.value = x} -> x) samps in 
     assert_equal_float ~epsabs:0.05 0.0 mu;
     assert_equal_float ~epsrel:1e-2 1.0 sigma
+
+let test_memory_rjmcmc_1d () = 
+  let log_prior _ = 0.0 and 
+      log_likelihood lf x = lf +. Stats.log_gaussian 0.0 1.0 x in 
+  let jump_proposal x = 
+    if Random.float 1.0 < 0.25 then 
+      x +. Random.float 0.5
+    else
+      x -. Random.float 0.5 in
+  let log_jump_prob x y = 
+    if y > x then log 0.25 else log 0.75 in 
+  let samples = 
+    Mcmc.memory_rjmcmc_array 
+      1000000 
+      (log_likelihood 0.5, log_likelihood 1.0) 
+      (log_prior, log_prior)
+      (jump_proposal, jump_proposal)
+      (log_jump_prob, log_jump_prob)
+      (0.5, 0.5)
+      (0.0, 0.0) in
+  let (sa, sb) = Mcmc.split_memory_array (0.5, 0.5) samples in 
+  let aout = open_out "asamples.dat" and 
+      bout = open_out "bsamples.dat" in 
+    Read_write.write (fun x -> [| x |]) aout sa;
+    Read_write.write (fun x -> [| x |]) bout sb;
+    close_out aout;
+    close_out bout;
+  let r = Mcmc.memory_evidence_ratio samples in 
+    assert_equal_float ~epsrel:0.1 0.5 r
 
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
@@ -177,4 +213,5 @@ let tests = "mcmc.ml tests" >:::
    "prior*like = gaussian, uniform jump" >:: test_prior_like;
    "remove_repeat" >:: test_remove_repeat;
    "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
-   "combine_jump_proposal" >:: test_combine_jump_proposal]
+   "combine_jump_proposal" >:: test_combine_jump_proposal;
+   "memory_rjmcmc gaussians in 1-D" >:: test_memory_rjmcmc_1d]
