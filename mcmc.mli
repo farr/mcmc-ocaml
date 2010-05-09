@@ -43,12 +43,15 @@ val make_mcmc_sampler : ('a -> float) -> ('a -> float) ->
   ('a -> 'a) -> ('a -> 'a -> float) -> 
   ('a mcmc_sample -> 'a mcmc_sample)
 
-(** [mcmc_array n_samples log_likelihood log_prior jump_proposal
-    log_jump_prob start] construts an array of samples of length
-    [n_samples] from the MCMC chain described by the given parameters
-    (see {!Mcmc.make_mcmc_sampler}).  The first sample in the array is
-    always [start]. *)
-val mcmc_array : int -> ('a -> float) -> ('a -> float) -> 
+(** [mcmc_array ?nskip n_samples log_likelihood log_prior
+    jump_proposal log_jump_prob start] construts an array of samples
+    of length [n_samples] from the MCMC chain described by the given
+    parameters (see {!Mcmc.make_mcmc_sampler}).  The first sample in
+    the array is always [start].  If [nskip] is provided, it is the
+    number of states to produce before recording a state in the array
+    ([nskip] defaults to 1, which causes every state produced by the
+    sampler to be recorded). *)
+val mcmc_array : ?nskip : int -> int -> ('a -> float) -> ('a -> float) -> 
   ('a -> 'a) -> ('a -> 'a -> float) -> 
   'a -> ('a mcmc_sample) array
 
@@ -123,15 +126,17 @@ val make_rjmcmc_sampler :
   float * float -> 
   ('a, 'b) rjmcmc_sample -> ('a, 'b) rjmcmc_sample
 
-(** [rjmcmc_array n log_likelihoods log_priors internal_jump_proposals
-    log_internal_jump_probabilities transition_jump_proposals
-    log_transition_jump_probabilities model_priors initial_states]
-    produces an array of reverse-jump MCMC samples from the posterior
-    of the two-parameter-space model described by its arguments,
-    beginning with one of the [initial_states] (which one is chosen
-    randomly according to the model priors).  See
-    {!Mcmc.make_rjmcmc_sampler} for a description of the arguments. *)
+(** [rjmcmc_array ?nskip n log_likelihoods log_priors
+    internal_jump_proposals log_internal_jump_probabilities
+    transition_jump_proposals log_transition_jump_probabilities
+    model_priors initial_states] produces an array of reverse-jump
+    MCMC samples from the posterior of the two-parameter-space model
+    described by its arguments, beginning with one of the
+    [initial_states] (which one is chosen randomly according to the
+    model priors).  See {!Mcmc.make_rjmcmc_sampler} for a description
+    of the arguments. *)
 val rjmcmc_array : 
+  ?nskip : int -> 
   int -> 
   ('a -> float) * ('b -> float) -> 
   ('a -> float) * ('b -> float) -> 
@@ -174,6 +179,7 @@ val make_admixture_mcmc_sampler :
 (** Make an array instead of a sampler for the admixture model; see
     {!Mcmc.make_admixture_mcmc_sampler}. *)
 val admixture_mcmc_array :
+  ?nskip : int -> 
   int ->
   ('a -> float) * ('b -> float) -> 
   ('a -> float) * ('b -> float) -> 

@@ -39,14 +39,17 @@ let make_mcmc_sampler log_likelihood log_prior jump_proposal log_jump_prob =
         x
       end
 
-let mcmc_array n log_likelihood log_prior jump_proposal log_jump_prob start = 
-  let samples = 
-    Array.make n {value = start;
+let mcmc_array ?(nskip = 1) n log_likelihood log_prior jump_proposal log_jump_prob start = 
+  let current_sample = ref {value = start;
                   like_prior = {log_likelihood = log_likelihood start;
-                                log_prior = log_prior start}} in 
+                                log_prior = log_prior start}} in
+    
+  let samples = Array.make n !current_sample in 
   let sample = make_mcmc_sampler log_likelihood log_prior jump_proposal log_jump_prob in 
-    for i = 1 to n - 1 do 
-      samples.(i) <- sample samples.(i-1)
+    for i = 1 to (n - 1) * nskip do 
+      current_sample := sample !current_sample;
+      if i mod nskip = 0 then 
+        samples.(i / nskip) <- !current_sample
     done;
     samples
 
@@ -96,7 +99,7 @@ let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, j
         | B(b) -> (log pb) +. lpb b in 
     make_mcmc_sampler log_like log_prior jump_proposal log_jump_prob
 
-let rjmcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) 
+let rjmcmc_array ?(nskip = 1) n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) 
     (ljpintoa, ljpintob) (pa,pb) (a,b) = 
   let is_a = Random.float 1.0 < pa in 
   let next_state = 
@@ -104,11 +107,12 @@ let rjmcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob
   let value = if is_a then A(a) else B(b) and 
       log_like = if is_a then lla a else llb b and 
       log_prior = if is_a then lpa a +. (log pa) else lpb b +. (log pb) in 
-  let states = Array.make n 
-    {value = value; like_prior = {log_likelihood = log_like; log_prior = log_prior}} in 
-    for i = 1 to n - 1 do 
-      let last = states.(i-1) in 
-        states.(i) <- next_state last
+  let current_state = ref {value = value; like_prior = {log_likelihood = log_like; log_prior = log_prior}} in
+  let states = Array.make n !current_state in 
+    for i = 1 to (n-1) * nskip do 
+      current_state := next_state !current_state;
+      if i mod nskip = 0 then 
+        states.(i/nskip) <- !current_state
     done;
     states
 
@@ -151,7 +155,7 @@ let make_admixture_mcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (p
     (ljpa a a') +. (ljpb b b') in 
     make_mcmc_sampler log_likelihood log_prior propose log_jump_prob
 
-let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (va, vb) (a, b) = 
+let admixture_mcmc_array ?(nskip = 1) n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (va, vb) (a, b) = 
   assert(abs_float (pa +. pb -. 1.0) < sqrt epsilon_float);
   let lam = Random.float 1.0 in 
   let start = 
@@ -163,10 +167,12 @@ let admixture_mcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb
               ((log (1.0 -. lam)) +. (llb b) +. (lpb b) +. (log pb) -. (log va));
          log_prior = 0.0}} in 
   let next = make_admixture_mcmc_sampler (lla,llb) (lpa,lpb) (jpa, jpb) (ljpa, ljpb) (pa,pb) (va,vb) in 
-  let samps = Array.make n start in 
-    for i = 1 to n - 1 do 
-      let last = samps.(i-1) in 
-        samps.(i) <- next last
+  let current_state = ref start in 
+  let samps = Array.make n !current_state in 
+    for i = 1 to (n - 1)*nskip do 
+      current_state := next !current_state;
+      if i mod nskip = 0 then 
+        samps.(i/nskip) <- !current_state
     done;
     samps
 
