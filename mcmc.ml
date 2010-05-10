@@ -283,3 +283,129 @@ let uniform_wrapping xmin xmax dx x =
       xmax -. (xmin -. xnew)
     else
       xnew
+
+let should_accept_swap_with_higher_beta beta {like_prior = {log_likelihood = ll}} beta' {like_prior = {log_likelihood = oll}} = 
+  let log_paccept = (beta'/.beta -. 1.0)*.ll +. (beta/.beta' -. 1.0)*.oll in
+    (log (Random.float 1.0)) < log_paccept
+
+let adjust_state current_beta other_beta ({like_prior = {log_likelihood = ll; log_prior = lp}} as other_state) = 
+  {other_state with like_prior = {log_likelihood = ll*.(current_beta /. other_beta); log_prior = lp}}
+
+let maybe_exchange_temps beta ({like_prior = {log_likelihood = ll}} as state) = 
+  let rank = Mpi.comm_rank Mpi.comm_world and 
+      np = Mpi.comm_size Mpi.comm_world in 
+  let dbeta = 1.0 /. (float_of_int np) in 
+  let other = ref state and 
+      state = ref state in
+    (* 0 <--> 1, 2 <--> 3, ... *)
+    if rank = np - 1 && np mod 2 = 1 then 
+      () (* Do Nothing. *)
+    else begin
+      (* Evens send up first. *)
+      if rank mod 2 = 0 then 
+        Mpi.send state (rank+1) 0 Mpi.comm_world
+      else
+        other := Mpi.receive (rank-1) 0 Mpi.comm_world;
+      (* Odds send down next. *)
+      if rank mod 2 = 1 then 
+        Mpi.send state (rank-1) 0 Mpi.comm_world
+      else
+        other := Mpi.receive (rank+1) 0 Mpi.comm_world;
+      let should_swap = ref true in 
+        (* Evens determine whether there should be a swap. *)
+        if rank mod 2 = 0 then begin
+          let other_beta = beta +. dbeta in 
+            should_swap := should_accept_swap_with_higher_beta beta !state other_beta !other
+        end;
+        (* Now evens tell odds about swap. *)
+        if rank mod 2 = 0 then 
+          Mpi.send_int (if !should_swap then 1 else 0) (rank+1) 0 Mpi.comm_world
+        else
+          should_swap := Mpi.receive_int (rank-1) 0 Mpi.comm_world = 1;
+        if !should_swap then 
+          let other_beta = if rank mod 2 = 0 then beta +. dbeta else beta -. dbeta in
+          state := adjust_state beta other_beta !other
+    end;
+    (* 1 <--> 2, 3 <--> 4, ... *)
+    if rank = 0 || (np mod 2 = 0 && rank = np - 1) then 
+      () (* Do nothing. *)
+    else begin
+      (* Odds send up first. *)
+      if rank mod 2 = 1 then 
+        Mpi.send !state (rank+1) 0 Mpi.comm_world
+      else
+        other := Mpi.receive (rank-1) 0 Mpi.comm_world;
+      (* Evens send down next. *)
+      if rank mod 2 = 0 then 
+        Mpi.send !state (rank-1) 0 Mpi.comm_world
+      else
+        other := Mpi.receive (rank+1) 0 Mpi.comm_world;
+      let should_swap = ref true in 
+        (* Odds determine whether there should be a swap *)
+        if rank mod 2 = 1 then begin
+          let other_beta = beta +. dbeta in 
+            should_swap := should_accept_swap_with_higher_beta beta !state other_beta !other
+        end;
+        (* Now odds tell evens about swap. *)
+        if rank mod 2 = 1 then 
+          Mpi.send_int (if !should_swap then 1 else 0) (rank+1) 0 Mpi.comm_world
+        else
+          should_swap := Mpi.receive_int (rank-1) 0 Mpi.comm_world = 1;
+        if !should_swap then 
+          let other_beta = if rank mod 2 = 1 then beta +. dbeta else beta -. dbeta in 
+            state := adjust_state beta other_beta !other
+    end;
+    !state
+
+let make_pt_mcmc_sampler nswap log_like log_prior propose log_jp = 
+  let count = ref 1 in 
+  let dbeta = 1.0 /. (float_of_int (Mpi.comm_size Mpi.comm_world)) in 
+  let beta = dbeta *. (float_of_int (Mpi.comm_rank Mpi.comm_world + 1)) in
+    fun ({value = v; like_prior = {log_likelihood = ll; log_prior = lp}} as state) -> 
+      if !count mod nswap = 0 then 
+        maybe_exchange_temps beta state
+      else
+        let new_v = propose v in 
+        let new_ll = log_like new_v and 
+            new_lp = log_prior new_v in
+        let new_ll = beta *. new_ll in 
+        let log_forward = log_jp v new_v and 
+            log_backward = log_jp new_v v in 
+        let logacceptp = new_ll +. new_lp -. ll -. lp +. log_backward -. log_forward in 
+          if (log (Random.float 1.0)) < logacceptp then 
+            {value = new_v; like_prior = {log_likelihood = new_ll; log_prior = new_lp}}
+          else
+            state
+
+let pt_beta () = 
+  let rank = Mpi.comm_rank Mpi.comm_world and 
+      np = Mpi.comm_size Mpi.comm_world in 
+    (float_of_int (rank+1))/.(float_of_int np)
+
+let pt_dbeta () = 
+  let np = Mpi.comm_size Mpi.comm_world in 
+    1.0 /. (float_of_int np)
+
+let pt_mcmc_array ?(nskip = 1) n nswap log_like log_prior propose log_jp start = 
+  let beta = pt_beta () in 
+  let state = {value = start;
+               like_prior = {log_likelihood = beta *. (log_like start);
+                             log_prior = log_prior start}} in 
+  let states = Array.make n state in 
+  let current_state = ref state in 
+  let next_state = make_pt_mcmc_sampler nswap log_like log_prior propose log_jp in
+    for i = 1 to (n-1)*nskip do 
+      current_state := next_state !current_state;
+      if i mod nskip = 0 then 
+        states.(i/nskip) <- !current_state
+    done;
+    states
+
+let expected_log_like samples = 
+  let n = Array.length samples in 
+  let ll_sum = ref 0.0 in 
+    for i = 0 to n - 1 do 
+      let {like_prior = {log_likelihood = ll}} = samples.(i) in
+      ll_sum := !ll_sum +. ll
+    done;
+    !ll_sum /. (float_of_int n)
