@@ -91,7 +91,7 @@ let test_prior_like () =
       prior x = 0.25 *. (log_gaussian mu sigma x) and 
       like x = 0.75 *. (log_gaussian mu sigma x) and 
       jump_prob x y = 0.0 in
-  let samples = mcmc_array nsamp like prior propose jump_prob mu in 
+  let samples = mcmc_array ~nskip:10 nsamp like prior propose jump_prob mu in 
   let mean = mean samples in 
   let std = std ~mu:mean samples in 
     assert_equal_float ~msg:"means differ" ~epsrel:2e-1 ~epsabs:0.0 mu mean;
@@ -130,7 +130,7 @@ let test_rjmcmc_gaussians () =
       log_prior1 x = 0.5 *. (log_gaussian mu1 sigma1 x) and 
       log_prior2 x = 0.7 *. (log_gaussian mu2 sigma2 x) in 
   let p1 = 0.5 and p2 = 0.5 in 
-  let samples = rjmcmc_array nsamp
+  let samples = rjmcmc_array ~nskip:10 nsamp
     (log_like1,log_like2)
     (log_prior1,log_prior2)
     (propose1,propose2)
@@ -248,7 +248,7 @@ let test_combine_jump_proposal () =
    Mcmc.combine_jump_proposals 
       [(1.0, propose_left, log_jp_left);
        (2.0, propose_right, log_jp_right)] in 
-  let samps = Mcmc.mcmc_array nsamples (fun x -> Stats.log_gaussian 0.0 1.0 x) (fun x -> 0.0) propose log_jp 0.0 in 
+  let samps = Mcmc.mcmc_array ~nskip:5 nsamples (fun x -> Stats.log_gaussian 0.0 1.0 x) (fun x -> 0.0) propose log_jp 0.0 in 
   let mu = Stats.meanf (fun {Mcmc.value = x} -> x) samps and 
       sigma = Stats.stdf (fun {Mcmc.value = x} -> x) samps in 
     assert_equal_float ~epsabs:0.05 0.0 mu;
