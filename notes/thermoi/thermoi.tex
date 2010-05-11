@@ -1,0 +1,51 @@
+\documentclass{article}
+
+\begin{document}
+
+The Bayesian evidence, $p(d|M)$, for a model with parameters $\theta$,
+likelihood $p(d|\theta,M)$, prior $p(\theta|M)$ given data $d$ is
+\begin{equation}
+  p(d|M) = \int d\theta\, p(d|\theta,M) p(\theta|M).
+\end{equation}
+Thermodynamic integration is an attempt to compute the evidence using
+a sequence of ``tempered'' likelihoods: 
+\begin{equation}
+  p(d|\theta,\beta,M) \equiv p(d|\theta,M)^\beta,
+\end{equation}
+with $0 \leq \beta \leq 1$.  (The parameter $\beta$ plays the role of
+an inverse temperature: $\beta = 1/T$ for $1 \leq T < \infty$; high
+temperatures---small $\beta$s---result in smoothed likelihoods, which
+can help a sequence of samples from the posterior avoid getting stuck
+in a sharp (local) maximum.)  Define a partition function, $Z(\beta)$,
+which is the evidence evaluated with the tempered likelihood:
+\begin{equation}
+  Z(\beta) \equiv \int d\theta\, p(d|\theta,\beta,M) p(\theta|M) =
+  \int d\theta\, p(d|\theta,M)^\beta p(\theta|M).
+\end{equation}
+(Note that the prior is not tempered in $Z(\beta)$.)
+
+The partition function satisfies a differential equation 
+\begin{equation}
+  \frac{dZ}{d\beta} = \int d\theta \log(p(d|\theta,M))
+  p(d|\theta,\beta,M) p(\theta|M),
+\end{equation}
+or, upon dividing both sides by $Z(\beta)$,
+\begin{equation}
+  \frac{d\log Z}{d\beta} = \langle \log(p(d|\theta,M)) \rangle_\beta,
+\end{equation}
+where $\langle \ldots \rangle_\beta$ is the expectation value over the
+tempered posterior.  Using the boundary condition
+\begin{equation}
+  Z(0) = 1,
+\end{equation}
+we can integrate this equation to obtain 
+\begin{equation}
+  Z(1) = p(d|M) = \int_0^1 d\beta\, \langle p(d|\theta,M) \rangle_\beta.
+\end{equation}
+
+If we run a parallel-tempered MCMC, we have some number of chains that
+sample the tempered posterior at various values of $\beta$.  Using
+these samples, we can approximate the evidence integral using some
+quadrature scheme.  
+
+\end{document}

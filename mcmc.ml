@@ -429,7 +429,6 @@ let integrate_lls lls =
 
 let thermodynamic_integrate samples = 
   let ll = expected_log_like samples in 
-    Printf.eprintf "Rank %d: found <log(like)> = %g\n%!" (Mpi.comm_rank Mpi.comm_world) ll;
   let lls = if Mpi.comm_rank Mpi.comm_world = 0 then Array.make (Mpi.comm_size Mpi.comm_world) 0.0 else [| |] in 
     Mpi.gather_float ll lls 0 Mpi.comm_world;
   let ti_int = 

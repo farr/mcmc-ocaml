@@ -16,9 +16,9 @@ let _ =
     Random.init seed
 
 let log_likelihood x = Stats.log_gaussian 0.0 1.0 x
-let log_prior x = 0.0
+let log_prior x = if abs_float x <= 10.0 then log 0.1 else 0.0
 
-let jump_proposal x = x +. Random.float 1.0 -. 0.5
+let jump_proposal x = Mcmc.uniform_wrapping (-10.0) 10.0 1.0 x
 let log_jump_prob x y = 0.0
 
 let samples = 
@@ -31,4 +31,4 @@ let _ =
 
 let _ = 
   let evid = Mcmc.thermodynamic_integrate samples in 
-    Printf.printf "Process %d: evidence %g\n%!" (Mpi.comm_rank Mpi.comm_world) evid
+    Printf.printf "Process %d: log evidence %g (true value %g)\n%!" (Mpi.comm_rank Mpi.comm_world) evid (-2.99573)
