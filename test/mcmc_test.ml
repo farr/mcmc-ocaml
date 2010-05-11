@@ -176,8 +176,8 @@ let test_combine_jump_proposal () =
 let test_memory_rjmcmc_top_hats () = 
   let log_prior x = if 0.0 <= x && x <= 1.0 then 0.0 else neg_infinity in 
   let log_like1 x = log_prior x and 
-      log_like2 x = if 0.4 <= x && x <= 0.6 then 0.0 else neg_infinity in 
-  let jump_proposal x = Mcmc.uniform_wrapping 0.0 1.0 0.2 x and 
+      log_like2 x = if 0.25 <= x && x <= 0.75 then 0.0 else neg_infinity in 
+  let jump_proposal x = Mcmc.uniform_wrapping 0.0 1.0 0.1 x and 
       log_jump_prob _ _ = 0.0 in 
   let samples = 
     Mcmc.memory_rjmcmc_array
@@ -196,7 +196,7 @@ let test_memory_rjmcmc_top_hats () =
     close_out aout;
     close_out bout;
   let r = Mcmc.memory_evidence_ratio samples in 
-    assert_equal_float ~epsabs:0.5 5.0 r
+    assert_equal_float ~epsabs:0.5 2.0 r
 
 let test_memory_rjmcmc_1d () = 
   let log_prior _ = 0.0 and 
