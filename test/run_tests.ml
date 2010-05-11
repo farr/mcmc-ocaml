@@ -9,7 +9,12 @@ let tests = "all denest tests" >:::
    "stats.ml tests" >: Stats_test.tests]
 
 let _ = 
-  Random.self_init ();
+  let inp = open_in "/dev/random" in 
+  let seed = input_binary_int inp in 
+    Random.init seed;
+    close_in inp
+
+let _ = 
   let results = run_test_tt_main tests in 
   let nfail = 
     List.fold_left 

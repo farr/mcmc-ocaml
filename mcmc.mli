@@ -43,12 +43,15 @@ val make_mcmc_sampler : ('a -> float) -> ('a -> float) ->
   ('a -> 'a) -> ('a -> 'a -> float) -> 
   ('a mcmc_sample -> 'a mcmc_sample)
 
-(** [mcmc_array n_samples log_likelihood log_prior jump_proposal
-    log_jump_prob start] construts an array of samples of length
-    [n_samples] from the MCMC chain described by the given parameters
-    (see {!Mcmc.make_mcmc_sampler}).  The first sample in the array is
-    always [start]. *)
-val mcmc_array : int -> ('a -> float) -> ('a -> float) -> 
+(** [mcmc_array ?nskip n_samples log_likelihood log_prior
+    jump_proposal log_jump_prob start] construts an array of samples
+    of length [n_samples] from the MCMC chain described by the given
+    parameters (see {!Mcmc.make_mcmc_sampler}).  The first sample in
+    the array is always [start].  If [nskip] is provided, it is the
+    number of states to produce before recording a state in the array
+    ([nskip] defaults to 1, which causes every state produced by the
+    sampler to be recorded). *)
+val mcmc_array : ?nskip : int -> int -> ('a -> float) -> ('a -> float) -> 
   ('a -> 'a) -> ('a -> 'a -> float) -> 
   'a -> ('a mcmc_sample) array
 
@@ -123,15 +126,17 @@ val make_rjmcmc_sampler :
   float * float -> 
   ('a, 'b) rjmcmc_sample -> ('a, 'b) rjmcmc_sample
 
-(** [rjmcmc_array n log_likelihoods log_priors internal_jump_proposals
-    log_internal_jump_probabilities transition_jump_proposals
-    log_transition_jump_probabilities model_priors initial_states]
-    produces an array of reverse-jump MCMC samples from the posterior
-    of the two-parameter-space model described by its arguments,
-    beginning with one of the [initial_states] (which one is chosen
-    randomly according to the model priors).  See
-    {!Mcmc.make_rjmcmc_sampler} for a description of the arguments. *)
+(** [rjmcmc_array ?nskip n log_likelihoods log_priors
+    internal_jump_proposals log_internal_jump_probabilities
+    transition_jump_proposals log_transition_jump_probabilities
+    model_priors initial_states] produces an array of reverse-jump
+    MCMC samples from the posterior of the two-parameter-space model
+    described by its arguments, beginning with one of the
+    [initial_states] (which one is chosen randomly according to the
+    model priors).  See {!Mcmc.make_rjmcmc_sampler} for a description
+    of the arguments. *)
 val rjmcmc_array : 
+  ?nskip : int -> 
   int -> 
   ('a -> float) * ('b -> float) -> 
   ('a -> float) * ('b -> float) -> 
@@ -223,3 +228,62 @@ val memory_evidence_ratio : ('a, 'b) memory mcmc_sample array -> float
     from the memory rjmcmc priors. *)
 val split_memory_array : float * float -> ('a, 'b) memory mcmc_sample array -> 
   'a mcmc_sample array * 'b mcmc_sample array
+
+(** [pt_beta ()] returns the current [beta] value based on this
+    process' rank in the [Mpi.comm_world].  [beta] is used to "temper"
+    the likelihood: [log_like = beta *. true_log_like].  The [beta]
+    values for some number of processes are uniformly distributed on
+    (0,1\]; the process with [pt_beta () = Mpi.comm_size
+    Mpi.comm_world - 1] always has [beta = 1.0], and therefore should
+    be used for computing expectation values for the true
+    distribution. *)
+val pt_beta : unit -> float
+
+(** [pt_dbeta ()] computes the step in [beta] based on the number of
+    processes currently running in the [Mpi.comm_world].  Process with
+    rank [i] has [beta = (i+1)*.dbeta]. *)
+val pt_dbeta : unit -> float
+
+(** [make_pt_mcmc_sampler nswap log_like log_prior propose log_jp].
+    Like {!Mcmc.make_mcmc_sampler}, but uses the multiple processes
+    running under MPI to explore "tempered" chains, where the
+    likelihood has been raised to a power [beta] between 0 and 1.
+    (The term "tempering" comes from a thermodynamical analogy, where
+    [beta] plays the role of the inverse temperature.)  The [nswap]
+    parameter controls how many steps each chain should take
+    individually before trying to swap with the next highest and
+    lowest [beta] chains.  If you find communication costs dominating
+    the computation, increase [nswap].  Alternately, if you find poor
+    mixing between chains of differing temperature, decrease [nswap].
+    The samples are drawn from the tempered likelihood with tempering
+    parameter [beta]. *)
+val make_pt_mcmc_sampler : int -> ('a -> float) -> ('a -> float) -> 
+  ('a -> 'a) -> ('a -> 'a -> float) -> ('a mcmc_sample -> 'a mcmc_sample)
+
+(** [pt_mcmc_array ?nskip n nswap log_like log_prior propose log_jp
+    start].  Like {!Mcmc.mcmc_array}, but for parallel tempering (see
+    {!Mcmc.make_pt_mcmc_sampler}).  The array of samples is drawn from
+    the tempered distribution with parameter [beta].  This means that
+    the process with rank [Mpi.comm_size Mpi.comm_world - 1] samples
+    from the true distribution; the other processes sample from
+    tempered distributions. *)
+val pt_mcmc_array : ?nskip : int -> int -> int -> 
+  ('a -> float) -> ('a -> float) -> 
+  ('a -> 'a) -> ('a -> 'a -> float) -> 
+  'a -> 'a mcmc_sample array
+
+(** [thermodynamic_integrate samples] uses the existing MPI processes
+    at the various [beta] to perform thermodynamic integration,
+    returning the log of the evidence for the model under
+    investigation.  Each process should call thermodynamic_integrate
+    with an array of samples taken at the corresponding [beta]. *)
+val thermodynamic_integrate : 'a mcmc_sample array -> float
+
+(** [reset_nswap ()] resets the swap counter for the
+    parallel-tempering. *)
+val reset_nswap : unit -> unit
+
+(** [get_nswap ()] returns the number of successful exchanges between
+    chains of different temperatures. *)
+val get_nswap : unit -> int
+
