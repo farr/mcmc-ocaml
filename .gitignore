@@ -5,3 +5,6 @@ data
 *.docdir
 *.nb
 *.dat
+*.log
+*.aux
+*.pdf

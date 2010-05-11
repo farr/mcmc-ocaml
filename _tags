@@ -1,5 +1,7 @@
 <test> or <bin> : include
 
-<bin/*.{ml,mli,native,byte}> : use_mcmc
+<**/*.{ml,mli}> : use_mpi
 
-<test/*.{ml,mli,native,byte}> : use_unix, use_oUnit, use_mcmc
+<bin/*.{ml,mli,native,byte}> : use_mcmc, use_mpi
+
+<test/*.{ml,mli,native,byte}> : use_unix, use_oUnit, use_mcmc, use_mpi

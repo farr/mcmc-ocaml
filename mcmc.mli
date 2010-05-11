@@ -223,3 +223,61 @@ val max_posterior_admixture_ratio :
     value if it becomes smaller than [xmin] or greater than [xmax].
     ([dx] must be smaller than the range [xmax -. xmin].) *)
 val uniform_wrapping : float -> float -> float -> float -> float
+
+(** [pt_beta ()] returns the current [beta] value based on this
+    process' rank in the [Mpi.comm_world].  [beta] is used to "temper"
+    the likelihood: [log_like = beta *. true_log_like].  The [beta]
+    values for some number of processes are uniformly distributed on
+    (0,1\]; the process with [pt_beta () = Mpi.comm_size
+    Mpi.comm_world - 1] always has [beta = 1.0], and therefore should
+    be used for computing expectation values for the true
+    distribution. *)
+val pt_beta : unit -> float
+
+(** [pt_dbeta ()] computes the step in [beta] based on the number of
+    processes currently running in the [Mpi.comm_world].  Process with
+    rank [i] has [beta = (i+1)*.dbeta]. *)
+val pt_dbeta : unit -> float
+
+(** [make_pt_mcmc_sampler nswap log_like log_prior propose log_jp].
+    Like {!Mcmc.make_mcmc_sampler}, but uses the multiple processes
+    running under MPI to explore "tempered" chains, where the
+    likelihood has been raised to a power [beta] between 0 and 1.
+    (The term "tempering" comes from a thermodynamical analogy, where
+    [beta] plays the role of the inverse temperature.)  The [nswap]
+    parameter controls how many steps each chain should take
+    individually before trying to swap with the next highest and
+    lowest [beta] chains.  If you find communication costs dominating
+    the computation, increase [nswap].  Alternately, if you find poor
+    mixing between chains of differing temperature, decrease [nswap].
+    The samples are drawn from the tempered likelihood with tempering
+    parameter [beta]. *)
+val make_pt_mcmc_sampler : int -> ('a -> float) -> ('a -> float) -> 
+  ('a -> 'a) -> ('a -> 'a -> float) -> ('a mcmc_sample -> 'a mcmc_sample)
+
+(** [pt_mcmc_array ?nskip n nswap log_like log_prior propose log_jp
+    start].  Like {!Mcmc.mcmc_array}, but for parallel tempering (see
+    {!Mcmc.make_pt_mcmc_sampler}).  The array of samples is drawn from
+    the tempered distribution with parameter [beta].  This means that
+    the process with rank [Mpi.comm_size Mpi.comm_world - 1] samples
+    from the true distribution; the other processes sample from
+    tempered distributions. *)
+val pt_mcmc_array : ?nskip : int -> int -> int -> 
+  ('a -> float) -> ('a -> float) -> 
+  ('a -> 'a) -> ('a -> 'a -> float) -> 
+  'a -> 'a mcmc_sample array
+
+(** [thermodynamic_integrate samples] uses the existing MPI processes
+    at the various [beta] to perform thermodynamic integration,
+    returning the log of the evidence for the model under
+    investigation.  Each process should call thermodynamic_integrate
+    with an array of samples taken at the corresponding [beta]. *)
+val thermodynamic_integrate : 'a mcmc_sample array -> float
+
+(** [reset_nswap ()] resets the swap counter for the
+    parallel-tempering. *)
+val reset_nswap : unit -> unit
+
+(** [get_nswap ()] returns the number of successful exchanges between
+    chains of different temperatures. *)
+val get_nswap : unit -> int
