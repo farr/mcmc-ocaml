@@ -409,11 +409,12 @@ let pt_mcmc_array ?(nskip = 1) n nswap log_like log_prior propose log_jp start =
     states
 
 let expected_log_like samples = 
-  let n = Array.length samples in 
+  let n = Array.length samples and
+      beta = pt_beta () in 
   let ll_sum = ref 0.0 in 
     for i = 0 to n - 1 do 
       let {like_prior = {log_likelihood = ll}} = samples.(i) in
-      ll_sum := !ll_sum +. ll
+      ll_sum := !ll_sum +. ll/.beta
     done;
     !ll_sum /. (float_of_int n)
 
@@ -421,13 +422,14 @@ let integrate_lls lls =
   let db = pt_dbeta () in 
   let sum = ref 0.0 in 
   let n = Array.length lls in 
-    for i = 0 to n - 2 do 
+    for i = 0 to n - 1 do 
       sum := !sum +. db*.lls.(i)
     done;
-    !sum +. 0.5*.db*.(1.0 +. lls.(n-1))    
+    !sum +. 0.0
 
 let thermodynamic_integrate samples = 
   let ll = expected_log_like samples in 
+    Printf.eprintf "Rank %d: found <log(like)> = %g\n%!" (Mpi.comm_rank Mpi.comm_world) ll;
   let lls = if Mpi.comm_rank Mpi.comm_world = 0 then Array.make (Mpi.comm_size Mpi.comm_world) 0.0 else [| |] in 
     Mpi.gather_float ll lls 0 Mpi.comm_world;
   let ti_int = 

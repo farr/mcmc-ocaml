@@ -22,7 +22,7 @@ let jump_proposal x = x +. Random.float 1.0 -. 0.5
 let log_jump_prob x y = 0.0
 
 let samples = 
-  Mcmc.pt_mcmc_array ~nskip:101 1000000 1009 log_likelihood log_prior jump_proposal log_jump_prob 0.0
+  Mcmc.pt_mcmc_array ~nskip:11 100000 101 log_likelihood log_prior jump_proposal log_jump_prob 0.0
 
 let _ = 
   let out = open_out ("pt_test_" ^ (string_of_float (Mcmc.pt_beta ())) ^ "_samples.dat") in 
