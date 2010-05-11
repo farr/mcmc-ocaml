@@ -143,7 +143,9 @@ let test_rjmcmc_gaussians () =
   let p1 = (float_of_int n1) /. (float_of_int (n1+n2)) and 
       p2 = (float_of_int n2) /. (float_of_int (n1+n2)) in 
     assert_equal_float ~epsrel:0.1 0.5 p1;
-    assert_equal_float ~epsrel:0.1 0.5 p2
+    assert_equal_float ~epsrel:0.1 0.5 p2;
+    let r = rjmcmc_evidence_ratio samples in 
+      assert_equal_float ~epsabs:0.1 1.0 r
 
 let test_combine_jump_proposal () = 
   let nsamples = 1000000 in 
@@ -178,6 +180,31 @@ let test_combine_jump_proposal () =
     assert_equal_float ~epsabs:0.05 0.0 mu;
     assert_equal_float ~epsrel:1e-2 1.0 sigma
 
+let test_memory_rjmcmc_top_hats () = 
+  let log_prior x = if 0.0 <= x && x <= 1.0 then 0.0 else neg_infinity in 
+  let log_like1 x = log_prior x and 
+      log_like2 x = if 0.4 <= x && x <= 0.6 then 0.0 else neg_infinity in 
+  let jump_proposal x = Mcmc.uniform_wrapping 0.0 1.0 0.2 x and 
+      log_jump_prob _ _ = 0.0 in 
+  let samples = 
+    Mcmc.memory_rjmcmc_array
+      1000000
+      (log_like1, log_like2)
+      (log_prior, log_prior)
+      (jump_proposal, jump_proposal)
+      (log_jump_prob, log_jump_prob)
+      (0.5, 0.5)
+      (0.5, 0.5) in 
+  let (sa, sb) = Mcmc.split_memory_array (0.5, 0.5) samples in 
+  let aout = open_out "asamples.dat" and 
+      bout = open_out "bsamples.dat" in 
+    Read_write.write (fun x -> [| x |]) aout sa;
+    Read_write.write (fun x -> [| x |]) bout sb;
+    close_out aout;
+    close_out bout;
+  let r = Mcmc.memory_evidence_ratio samples in 
+    assert_equal_float ~epsabs:0.5 5.0 r
+
 let test_memory_rjmcmc_1d () = 
   let log_prior _ = 0.0 and 
       log_likelihood lf x = lf +. Stats.log_gaussian 0.0 1.0 x in 
@@ -197,13 +224,6 @@ let test_memory_rjmcmc_1d () =
       (log_jump_prob, log_jump_prob)
       (0.5, 0.5)
       (0.0, 0.0) in
-  let (sa, sb) = Mcmc.split_memory_array (0.5, 0.5) samples in 
-  let aout = open_out "asamples.dat" and 
-      bout = open_out "bsamples.dat" in 
-    Read_write.write (fun x -> [| x |]) aout sa;
-    Read_write.write (fun x -> [| x |]) bout sb;
-    close_out aout;
-    close_out bout;
   let r = Mcmc.memory_evidence_ratio samples in 
     assert_equal_float ~epsrel:0.1 0.5 r
 
@@ -214,4 +234,5 @@ let tests = "mcmc.ml tests" >:::
    "remove_repeat" >:: test_remove_repeat;
    "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
    "combine_jump_proposal" >:: test_combine_jump_proposal;
+   "memory_rjmcmc with top hat posteriors" >:: test_memory_rjmcmc_top_hats;
    "memory_rjmcmc gaussians in 1-D" >:: test_memory_rjmcmc_1d]

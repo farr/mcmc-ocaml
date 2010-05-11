@@ -149,6 +149,10 @@ val rjmcmc_array :
     times [B(_)] appears. *)
 val rjmcmc_model_counts : ('a, 'b) rjmcmc_sample array -> (int * int)
 
+(** [rjmcmc_evidence_ratio samples] returns the evidence ratio for the
+    reversible-jump MCMC [samples]. *)
+val rjmcmc_evidence_ratio : ('a, 'b) rjmcmc_sample array -> float
+
 (** [combine_jump_proposals \[(p1, jump1, log_jump_prob1); ...\]]
     combines the given list of jump proposals into a single jump
     proposal and jump probability which chooses [jump1] with
@@ -194,6 +198,7 @@ val make_memory_rjmcmc_sampler :
 
 (** Like {!Mcmc.mcmc_array}, but for {!Mcmc.make_memory_rjmcmc_sampler}. *)
 val memory_rjmcmc_array : 
+  ?nskip : int -> 
   int -> 
   ('a -> float) * ('b -> float) -> 
   ('a -> float) * ('b -> float) -> 
@@ -201,6 +206,10 @@ val memory_rjmcmc_array :
   ('a -> 'a -> float) * ('b -> 'b -> float) -> 
   float * float -> 
   'a * 'b -> ('a, 'b) memory mcmc_sample array
+
+(** [memory_rjmcmc_model_counts samples] returns the number of samples
+    in the [Left] and [Right] states of the rjmcmc. *)
+val memory_rjmcmc_model_counts : ('a, 'b) memory mcmc_sample array -> int * int
 
 (** [memory_evidence_ratio samples] computes an estimate of the
     evidence ratio between the models composing [samples]. *)

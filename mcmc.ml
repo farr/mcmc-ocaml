@@ -122,6 +122,10 @@ let rjmcmc_model_counts data =
     done;
     (!na, !nb)
 
+let rjmcmc_evidence_ratio samples = 
+  let (na,nb) = rjmcmc_model_counts samples in 
+    (float_of_int na)/.(float_of_int nb)
+
 let log_sum_logs la lb = 
   if la = neg_infinity && lb = neg_infinity then 
     neg_infinity
@@ -208,7 +212,7 @@ let make_memory_rjmcmc_sampler
           log_pb +. ljpb bx by in
     make_mcmc_sampler log_like log_prior jump_proposal log_jump_prob
 
-let memory_rjmcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (a, b) =
+let memory_rjmcmc_array ?(nskip = 1) n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (a, b) =
   let sampler = make_memory_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) in 
   let state = if Random.float 1.0 < pa then 
     {value = Left(a,b);
@@ -216,22 +220,28 @@ let memory_rjmcmc_array n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb)
   else
     {value = Right(a,b);
      like_prior = {log_likelihood = llb b; log_prior = lpb b +. (log pb)}} in 
+  let current_state = ref state in 
   let samples = Array.make n state in 
-    for i = 1 to n - 1 do 
-      samples.(i) <- sampler samples.(i-1)
+    for i = 1 to (n - 1)*nskip do 
+      current_state := sampler !current_state;
+      if i mod nskip = 0 then 
+        samples.(i/nskip) <- !current_state
     done;
     samples
 
-
-let memory_evidence_ratio samples = 
-  let nleft = ref 0 and 
-      nright = ref 0 in 
+let memory_rjmcmc_model_counts samples = 
+  let nl = ref 0 and 
+      nr = ref 0 in 
     for i = 0 to Array.length samples - 1 do 
       match samples.(i) with 
-        | {value = Left(_,_)} -> incr nleft
-        | {value = Right(_,_)} -> incr nright
+        | {value = Left(_,_)} -> incr nl
+        | {value = Right(_,_)} -> incr nr
     done;
-    ((float_of_int !nleft)/.(float_of_int !nright))
+    (!nl, !nr)
+
+let memory_evidence_ratio samples = 
+  let (nl, nr) = memory_rjmcmc_model_counts samples in 
+    (float_of_int nl)/.(float_of_int nr)
 
 let split_memory_array (pa,pb) samples = 
   if abs_float (pa +. pb -. 1.0) > sqrt epsilon_float then 
