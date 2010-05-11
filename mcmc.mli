@@ -264,3 +264,10 @@ val pt_mcmc_array : ?nskip : int -> int -> int ->
 (** [expected_log_like samples] returns the average value of the
     log_likelihood from samples. *)
 val expected_log_like : 'a mcmc_sample array -> float
+
+(** [thermodynamic_integrate samples] uses the existing MPI processes
+    at the various [beta] to perform thermodynamic integration,
+    returning the log of the evidence for the model under
+    investigation.  Each process should call thermodynamic_integrate
+    with an array of samples taken at the corresponding [beta]. *)
+val thermodynamic_integrate : 'a mcmc_sample array -> float

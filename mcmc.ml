@@ -291,40 +291,52 @@ let should_accept_swap_with_higher_beta beta {like_prior = {log_likelihood = ll}
 let adjust_state current_beta other_beta ({like_prior = {log_likelihood = ll; log_prior = lp}} as other_state) = 
   {other_state with like_prior = {log_likelihood = ll*.(current_beta /. other_beta); log_prior = lp}}
 
-let maybe_exchange_temps beta ({like_prior = {log_likelihood = ll}} as state) = 
+let pt_beta () = 
   let rank = Mpi.comm_rank Mpi.comm_world and 
       np = Mpi.comm_size Mpi.comm_world in 
-  let dbeta = 1.0 /. (float_of_int np) in 
+    (float_of_int (rank+1))/.(float_of_int np)
+
+let pt_dbeta () = 
+  let np = Mpi.comm_size Mpi.comm_world in 
+    1.0 /. (float_of_int np)
+
+let maybe_exchange_temps beta ({like_prior = {log_likelihood = ll}} as state) = 
+  let dbeta = pt_dbeta () in
+  let rank = Mpi.comm_rank Mpi.comm_world and
+      np = Mpi.comm_size Mpi.comm_world in
   let other = ref state and 
       state = ref state in
     (* 0 <--> 1, 2 <--> 3, ... *)
-    if rank = np - 1 && np mod 2 = 1 then 
+    if rank = np - 1 && np mod 2 = 1 then begin
       () (* Do Nothing. *)
-    else begin
+    end else begin
       (* Evens send up first. *)
-      if rank mod 2 = 0 then 
-        Mpi.send state (rank+1) 0 Mpi.comm_world
-      else
-        other := Mpi.receive (rank-1) 0 Mpi.comm_world;
+      if rank mod 2 = 0 then begin
+        Mpi.send !state (rank+1) 0 Mpi.comm_world
+      end else begin
+        other := Mpi.receive (rank-1) 0 Mpi.comm_world
+      end;
       (* Odds send down next. *)
-      if rank mod 2 = 1 then 
-        Mpi.send state (rank-1) 0 Mpi.comm_world
-      else
-        other := Mpi.receive (rank+1) 0 Mpi.comm_world;
+      if rank mod 2 = 1 then begin
+        Mpi.send !state (rank-1) 0 Mpi.comm_world
+      end else begin
+        other := Mpi.receive (rank+1) 0 Mpi.comm_world
+      end;
       let should_swap = ref true in 
         (* Evens determine whether there should be a swap. *)
         if rank mod 2 = 0 then begin
           let other_beta = beta +. dbeta in 
-            should_swap := should_accept_swap_with_higher_beta beta !state other_beta !other
+            should_swap := should_accept_swap_with_higher_beta beta !state other_beta !other;
         end;
         (* Now evens tell odds about swap. *)
         if rank mod 2 = 0 then 
           Mpi.send_int (if !should_swap then 1 else 0) (rank+1) 0 Mpi.comm_world
         else
           should_swap := Mpi.receive_int (rank-1) 0 Mpi.comm_world = 1;
-        if !should_swap then 
+        if !should_swap then begin
           let other_beta = if rank mod 2 = 0 then beta +. dbeta else beta -. dbeta in
           state := adjust_state beta other_beta !other
+        end
     end;
     (* 1 <--> 2, 3 <--> 4, ... *)
     if rank = 0 || (np mod 2 = 0 && rank = np - 1) then 
@@ -359,12 +371,12 @@ let maybe_exchange_temps beta ({like_prior = {log_likelihood = ll}} as state) =
 
 let make_pt_mcmc_sampler nswap log_like log_prior propose log_jp = 
   let count = ref 1 in 
-  let dbeta = 1.0 /. (float_of_int (Mpi.comm_size Mpi.comm_world)) in 
-  let beta = dbeta *. (float_of_int (Mpi.comm_rank Mpi.comm_world + 1)) in
+  let beta = pt_beta () in
     fun ({value = v; like_prior = {log_likelihood = ll; log_prior = lp}} as state) -> 
-      if !count mod nswap = 0 then 
+      if !count mod nswap = 0 then begin
+        incr count;
         maybe_exchange_temps beta state
-      else
+      end else
         let new_v = propose v in 
         let new_ll = log_like new_v and 
             new_lp = log_prior new_v in
@@ -372,19 +384,14 @@ let make_pt_mcmc_sampler nswap log_like log_prior propose log_jp =
         let log_forward = log_jp v new_v and 
             log_backward = log_jp new_v v in 
         let logacceptp = new_ll +. new_lp -. ll -. lp +. log_backward -. log_forward in 
-          if (log (Random.float 1.0)) < logacceptp then 
+          incr count;
+          if (log (Random.float 1.0)) < logacceptp then begin
+            incr naccept;
             {value = new_v; like_prior = {log_likelihood = new_ll; log_prior = new_lp}}
-          else
+          end else begin
+            incr nreject;
             state
-
-let pt_beta () = 
-  let rank = Mpi.comm_rank Mpi.comm_world and 
-      np = Mpi.comm_size Mpi.comm_world in 
-    (float_of_int (rank+1))/.(float_of_int np)
-
-let pt_dbeta () = 
-  let np = Mpi.comm_size Mpi.comm_world in 
-    1.0 /. (float_of_int np)
+          end
 
 let pt_mcmc_array ?(nskip = 1) n nswap log_like log_prior propose log_jp start = 
   let beta = pt_beta () in 
@@ -409,3 +416,23 @@ let expected_log_like samples =
       ll_sum := !ll_sum +. ll
     done;
     !ll_sum /. (float_of_int n)
+
+let integrate_lls lls = 
+  let db = pt_dbeta () in 
+  let sum = ref 0.0 in 
+  let n = Array.length lls in 
+    for i = 0 to n - 2 do 
+      sum := !sum +. db*.lls.(i)
+    done;
+    !sum +. 0.5*.db*.(1.0 +. lls.(n-1))    
+
+let thermodynamic_integrate samples = 
+  let ll = expected_log_like samples in 
+  let lls = if Mpi.comm_rank Mpi.comm_world = 0 then Array.make (Mpi.comm_size Mpi.comm_world) 0.0 else [| |] in 
+    Mpi.gather_float ll lls 0 Mpi.comm_world;
+  let ti_int = 
+    if Mpi.comm_rank Mpi.comm_world = 0 then 
+      integrate_lls lls
+    else
+      0.0 in 
+    Mpi.broadcast_float ti_int 0 Mpi.comm_world
