@@ -154,41 +154,6 @@ val rjmcmc_array :
     times [B(_)] appears. *)
 val rjmcmc_model_counts : ('a, 'b) rjmcmc_sample array -> (int * int)
 
-(** [make_admixture_mcmc_sampler (log_like_a, log_like_b)
-    (log_prior_a, log_prior_b) (jump_prop_a, jump_prop_b)
-    (log_jump_prob_a, log_jump_prob_b) (model_prior_a, model_prior_b)
-    (volume_a, volume_b)]. Like {!Mcmc.make_mcmc_sampler}, but for an
-    admixture model of two parameter spaces.  The posterior of the
-    admixture model depends on the parameters of model a, model b, and
-    an additional parameter [lambda].  The posterior is [lambda
-    *. a_post /. volume_b +. (1.0 -. lambda) *. b_post /. volume_a].
-    [volume_a] and [volume_b] are the parameter-space volumes (note {b
-    not} prior mass---actual parameter volumes) for model a and model
-    b.  Marginalizing over all a and b parameters gives a posterior
-    for [lambda] proportional to [ lambda *. evidence_a +. (1.0
-    -. lambda) *. evidence_b ].  *)
-val make_admixture_mcmc_sampler : 
-  ('a -> float) * ('b -> float) -> 
-  ('a -> float) * ('b -> float) -> 
-  ('a -> 'a) * ('b -> 'b) -> 
-  ('a -> 'a -> float) * ('b -> 'b -> float) -> 
-  float * float -> 
-  float * float ->
-  (float * 'a * 'b) mcmc_sample -> (float * 'a * 'b) mcmc_sample
-
-(** Make an array instead of a sampler for the admixture model; see
-    {!Mcmc.make_admixture_mcmc_sampler}. *)
-val admixture_mcmc_array :
-  ?nskip : int -> 
-  int ->
-  ('a -> float) * ('b -> float) -> 
-  ('a -> float) * ('b -> float) -> 
-  ('a -> 'a) * ('b -> 'b) -> 
-  ('a -> 'a -> float) * ('b -> 'b -> float) -> 
-  float * float -> 
-  float * float -> 
-  'a * 'b -> (float * 'a * 'b) mcmc_sample array
-
 (** [combine_jump_proposals \[(p1, jump1, log_jump_prob1); ...\]]
     combines the given list of jump proposals into a single jump
     proposal and jump probability which chooses [jump1] with
@@ -197,26 +162,6 @@ val admixture_mcmc_array :
 val combine_jump_proposals : 
   (float * ('a -> 'a) * ('a -> 'a -> float)) list -> 
   ('a -> 'a) * ('a -> 'a -> float)
-
-(** [mean_lambda_ratio samples] returns the evidence ratio expected
-    from the mean value of the lambda parameter in [samples]. *)
-val mean_lambda_ratio : (float * 'a * 'b) mcmc_sample array -> float
-
-(** Returns the max-likelihood estimator for the evidence ratio
-    given an array of admixture mcmc samples. *)
-val max_like_admixture_ratio : (float * 'a * 'b) mcmc_sample array -> float
-
-(** [max_posterior_admixture_ratio ?dlog_prior ?ddlog_prior samples]
-    returns the maximum posterior estimator of the evidence ratio in
-    the admixture mcmc producing [samples].  [dlog_prior] is the
-    derivative of the log of the prior on the evidence ratio;
-    [ddlog_prior] is the second derivative of the prior.  By default,
-    these are based on the prior for the ratio of two uniform random
-    variables. *)
-val max_posterior_admixture_ratio : 
-  ?dlog_prior : (float -> float) -> 
-  ?ddlog_prior : (float -> float) -> 
-  (float * 'a * 'b) mcmc_sample array -> float
 
 (** [uniform_wrapping xmin xmax dx x] returns a uniform random number
     within a range of size [dx] about the point [x], wrapping the

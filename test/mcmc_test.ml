@@ -145,89 +145,6 @@ let test_rjmcmc_gaussians () =
     assert_equal_float ~epsrel:0.1 0.5 p1;
     assert_equal_float ~epsrel:0.1 0.5 p2
 
-let test_admixture_gaussian_cauchy () = 
-  let mu = Random.float 1.0 and 
-      sigma = Random.float 1.0 +. 1.0 in 
-  let ndata = 50 and 
-      nlambda = 10000 in
-  let samples = Array.init ndata (fun _ -> Stats.draw_gaussian mu sigma) in 
-  let log_gaussian_like ms = 
-    match ms with 
-      | [|mu; sigma|] -> 
-          let ll = ref 0.0 in 
-            for i = 0 to Array.length samples - 1 do 
-              ll := !ll +. log_gaussian mu sigma samples.(i)
-           done;
-            !ll +. 0.0
-      | _ -> raise (Invalid_argument "log_gaussian_like") in
-  let log_cauchy_like ms = 
-    match ms with 
-      | [|mu; sigma|] -> 
-          let ll = ref 0.0 in 
-            for i = 0 to Array.length samples - 1 do 
-              ll := !ll +. Stats.log_cauchy mu sigma samples.(i)
-            done;
-            !ll +. 0.0
-      | _ -> raise (Invalid_argument "log_cauchy_like") in 
-  let log_prior ms = 
-    match ms with 
-      | [|mu; sigma|] -> 
-          if 0.0 <= mu && mu <= 1.0 && 1.0 <= sigma && sigma <= 2.0 then 0.0 else neg_infinity 
-      | _ -> raise (Invalid_argument "log_prior") in
-  let propose ms = 
-    match ms with 
-      | [|mu; sigma|] -> 
-          let dmu = sigma /. (sqrt (float_of_int ndata)) and 
-              dsigma = sigma /. (sqrt (float_of_int ndata)) in 
-            [|random_between (mu -. dmu) (mu +. dmu);
-              random_between (sigma -. dsigma) (sigma +. dsigma)|]
-      | _ -> raise (Invalid_argument "propose") in 
-  let log_jump_prob _ _ = 0.0 in 
-  let lambda_samples = 
-    admixture_mcmc_array nlambda (log_gaussian_like, log_cauchy_like) (log_prior, log_prior) 
-      (propose, propose) (log_jump_prob, log_jump_prob) (0.5, 0.5) (1.0,1.0) 
-      ([|mu; sigma|], [|mu; sigma|]) in 
-  let avg_lambda = Stats.meanf (fun {Mcmc.value = (lam,_,_)} -> lam) lambda_samples in 
-    assert_bool "lambda small, favors cauchy" (avg_lambda > 0.5)
-
-let test_admixture_lambda_dist () = 
-  let xmax = 10.0 and 
-      xmin = -10.0 in 
-    assert(xmax -. xmin > 1.0); (* Needed for jump proposal to work out. *)
-  let nsamples = 1000000 in
-  let ea = Random.float 1.0 and 
-      eb = Random.float 1.0 in 
-  let r = ea /. eb in
-  let el = (1.0 +. 2.0 *. r) /. (3.0 +. 3.0*.r) and 
-      el2 = 2.0/.(r +. 1.0)*.(r /. 4.0 +. 1.0/.12.0) in
-    (* Printf.printf "\nRatio = %g, <l> = %g\n%!" r el; *)
-  let sigma_l = sqrt (el2 -. el*.el) in
-  let std_error = sigma_l /. (sqrt (float_of_int nsamples)) in
-  let log_like1 x = Stats.log_gaussian 0.0 1.0 x +. (log ea) in
-  let log_like2 x = Stats.log_gaussian 0.0 1.0 x +. (log eb) in 
-  let log_prior x = 
-    if xmin <= x && x <= xmax then 
-      ~-.(log (xmax -. xmin))
-    else
-      neg_infinity in
-  let propose x = Mcmc.uniform_wrapping xmin xmax 1.0 x in
-  let log_jump_prob x y = 0.0 in
-  Mcmc.reset_counters ();
-  let samples = 
-    admixture_mcmc_array nsamples (log_like1, log_like2) (log_prior, log_prior) 
-      (propose, propose) (log_jump_prob, log_jump_prob) (0.5, 0.5) (xmax -. xmin, xmax -. xmin) (0.0, 0.0) in 
-  (* let out = open_out "samples.dat" in  *)
-  (*   Array.iter (fun x -> let {value = (lam,x,y)} = x in Printf.fprintf out "%g %g %g\n" lam x y) samples; *)
-  (*   close_out out; *)
-  let lam = Stats.meanf (fun {Mcmc.value = (lam,_,_)} -> lam) samples in
-  (* let mlr = (Mcmc.max_like_admixture_ratio samples) in *)
-  (*   Printf.printf "Mean lam = %g\n" lam; *)
-  (*   Printf.printf "r from mean = %g\n" (1.0 /. (2.0 -. 3.0*.lam) -. 1.0); *)
-  (*   Printf.printf "max like r = %g\n" mlr; *)
-  (*   let (na,nr) = Mcmc.get_counters () in *)
-  (*   Printf.printf "accepted %d steps out of %d (ratio = %g)\n" na (na+nr) ((float_of_int na) /. (float_of_int (na+nr))); *)
-    assert_equal_float ~epsabs:(50.0*.std_error) ~msg:"mean lambda differs" el lam
-
 let test_combine_jump_proposal () = 
   let nsamples = 1000000 in 
   let propose_left x =
@@ -254,33 +171,10 @@ let test_combine_jump_proposal () =
     assert_equal_float ~epsabs:0.05 0.0 mu;
     assert_equal_float ~epsrel:1e-2 1.0 sigma
 
-let test_max_like_and_mean_lambda_admixture_ratio () = 
-  let nsamples = 1000000 in 
-  let r = 0.5 +. Random.float 1.0 in 
-  let samples = 
-    Array.init nsamples
-      (fun _ -> 
-         let rec lam_loop () = 
-           let lam = Random.float 1.0 in 
-           let plam = r *. lam +. 1.0 -. lam in 
-           if Random.float (r +. 1.0) < plam then 
-             {Mcmc.value = (lam, (), ());
-              like_prior = {Mcmc.log_likelihood = 0.0; log_prior = 0.0}}
-           else
-             lam_loop () in 
-           lam_loop ()) in 
-  let mlr = Mcmc.max_like_admixture_ratio samples in 
-  let mean_lam_ratio = Mcmc.mean_lambda_ratio samples in 
-    assert_equal_float ~epsrel:5e-2 r mlr;
-    assert_equal_float ~epsrel:5e-2 r mean_lam_ratio
-
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
    "gaussian posterior, left-biased jump proposal" >:: test_gaussian_post_left_biased_proposal;
    "prior*like = gaussian, uniform jump" >:: test_prior_like;
    "remove_repeat" >:: test_remove_repeat;
    "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
-   "admixture gaussian vs cauchy test" >:: test_admixture_gaussian_cauchy;
-   "admixture lambda distribution" >:: test_admixture_lambda_dist;
-   "combine_jump_proposal" >:: test_combine_jump_proposal;
-   "max_like_admixture_ratio and mean_lambda_ratio" >:: test_max_like_and_mean_lambda_admixture_ratio]
+   "combine_jump_proposal" >:: test_combine_jump_proposal]
