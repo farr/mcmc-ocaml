@@ -300,6 +300,11 @@ let pt_dbeta () =
   let np = Mpi.comm_size Mpi.comm_world in 
     1.0 /. (float_of_int np)
 
+let nswap = ref 0
+
+let reset_nswap () = nswap := 0
+let get_nswap () = !nswap
+
 let maybe_exchange_temps beta ({like_prior = {log_likelihood = ll}} as state) = 
   let dbeta = pt_dbeta () in
   let rank = Mpi.comm_rank Mpi.comm_world and
@@ -334,6 +339,7 @@ let maybe_exchange_temps beta ({like_prior = {log_likelihood = ll}} as state) =
         else
           should_swap := Mpi.receive_int (rank-1) 0 Mpi.comm_world = 1;
         if !should_swap then begin
+          incr nswap;
           let other_beta = if rank mod 2 = 0 then beta +. dbeta else beta -. dbeta in
           state := adjust_state beta other_beta !other
         end
@@ -364,6 +370,7 @@ let maybe_exchange_temps beta ({like_prior = {log_likelihood = ll}} as state) =
         else
           should_swap := Mpi.receive_int (rank-1) 0 Mpi.comm_world = 1;
         if !should_swap then 
+          incr nswap;
           let other_beta = if rank mod 2 = 1 then beta +. dbeta else beta -. dbeta in 
             state := adjust_state beta other_beta !other
     end;

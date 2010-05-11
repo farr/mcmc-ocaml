@@ -267,3 +267,11 @@ val pt_mcmc_array : ?nskip : int -> int -> int ->
     investigation.  Each process should call thermodynamic_integrate
     with an array of samples taken at the corresponding [beta]. *)
 val thermodynamic_integrate : 'a mcmc_sample array -> float
+
+(** [reset_nswap ()] resets the swap counter for the
+    parallel-tempering. *)
+val reset_nswap : unit -> unit
+
+(** [get_nswap ()] returns the number of successful exchanges between
+    chains of different temperatures. *)
+val get_nswap : unit -> int

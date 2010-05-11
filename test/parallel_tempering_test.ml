@@ -19,6 +19,8 @@ let _ =
     close_in inp;
     Random.init seed
 
+let rank = Mpi.comm_rank Mpi.comm_world
+
 let log_likelihood x = Stats.log_gaussian 0.0 1.0 x
 let log_prior x = if abs_float x <= 10.0 then log 0.1 else 0.0
 
@@ -26,10 +28,15 @@ let jump_proposal x = Mcmc.uniform_wrapping (-10.0) 10.0 1.0 x
 let log_jump_prob x y = 0.0
 
 let samples = 
+  Mcmc.reset_nswap ();
   let nskip = 11 and 
       nsamp = 100000 and 
       nswap = 101 in
   Mcmc.pt_mcmc_array ~nskip:nskip nsamp nswap log_likelihood log_prior jump_proposal log_jump_prob 0.0
+
+let _ = 
+  let nswap = Mcmc.get_nswap () in 
+    Printf.eprintf "Rank %d: number of swaps = %d\n%!" rank nswap
 
 let _ = 
   let out = open_out ("pt_test_" ^ (string_of_float (Mcmc.pt_beta ())) ^ "_samples.dat") in 
@@ -38,4 +45,4 @@ let _ =
 
 let _ = 
   let evid = Mcmc.thermodynamic_integrate samples in 
-    Printf.printf "Process %d: log evidence %g (true value %g)\n%!" (Mpi.comm_rank Mpi.comm_world) evid (-2.99573)
+    Printf.printf "Process %d: log evidence %g (true value %g)\n%!" rank evid (-2.99573)
