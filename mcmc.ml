@@ -173,6 +173,99 @@ let uniform_wrapping xmin xmax dx x =
     else
       xnew
 
+type ('a, 'b) memory = 
+  | Left of 'a * 'b
+  | Right of 'a * 'b
+
+let make_memory_rjmcmc_sampler 
+    (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) = 
+  if abs_float (pa +. pb -. 1.0) > sqrt epsilon_float then
+    raise (Invalid_argument "make_memory_rjmcmc_sampler: sum of model priors not 1.0");
+  let log_pa = log pa and 
+      log_pb = log pb in
+  let log_like = function 
+    | Left(a,b) -> 
+        lla a
+    | Right(a,b) -> 
+        llb b in
+  let log_prior = function 
+    | Left(a,b) -> 
+        lpa a +. log_pa
+    | Right(a,b) ->
+        lpb b +. log_pb in 
+  let jump_proposal = function 
+    | Left(a,b) -> 
+        if Random.float 1.0 < pb then 
+          (* Jump to a. *)
+          Right(jpa a, jpb b)
+        else
+          Left(jpa a, b)
+    | Right(a,b) -> 
+        if Random.float 1.0 < pa then 
+          Left(jpa a, jpb b)
+        else
+          Right(a, jpb b) in
+  let log_jump_prob x y = 
+    match x,y with 
+      | Left(ax, _), Left(ay, _) -> ljpa ax ay +. log_pa
+      | Left(ax, bx), Right(ay, by) -> 
+          log_pb +. ljpa ax ay +. ljpb bx by
+      | Right(ax, bx), Left(ay, by) -> 
+          log_pa +. ljpa ax ay +. ljpb bx by
+      | Right(_,bx), Right(_, by) -> 
+          log_pb +. ljpb bx by in
+    make_mcmc_sampler log_like log_prior jump_proposal log_jump_prob
+
+let memory_rjmcmc_array ?(nskip = 1) n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) (a, b) =
+  let sampler = make_memory_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (pa, pb) in 
+  let state = if Random.float 1.0 < pa then 
+    {value = Left(a,b);
+     like_prior = {log_likelihood = lla a; log_prior = lpa a +. (log pa)}}
+  else
+    {value = Right(a,b);
+     like_prior = {log_likelihood = llb b; log_prior = lpb b +. (log pb)}} in 
+  let current_state = ref state in 
+  let samples = Array.make n state in 
+    for i = 1 to (n - 1)*nskip do 
+      current_state := sampler !current_state;
+      if i mod nskip = 0 then 
+        samples.(i/nskip) <- !current_state
+    done;
+    samples
+
+let memory_rjmcmc_model_counts samples = 
+  let nl = ref 0 and 
+      nr = ref 0 in 
+    for i = 0 to Array.length samples - 1 do 
+      match samples.(i) with 
+        | {value = Left(_,_)} -> incr nl
+        | {value = Right(_,_)} -> incr nr
+    done;
+    (!nl, !nr)
+
+let memory_evidence_ratio samples = 
+  let (nl, nr) = memory_rjmcmc_model_counts samples in 
+    (float_of_int nl)/.(float_of_int nr)
+
+let split_memory_array (pa,pb) samples = 
+  if abs_float (pa +. pb -. 1.0) > sqrt epsilon_float then 
+    raise (Invalid_argument "split_memory_array: priors do not sum to 1.0");
+  let log_pa = log pa and 
+      log_pb = log pb in 
+  let left = ref [] and 
+      right = ref [] in 
+    for i = Array.length samples - 1 downto 0 do 
+      match samples.(i) with 
+        | {value = Left(a,_);
+           like_prior = {log_likelihood = ll; log_prior = lp}} -> 
+            left := {value = a; like_prior = {log_likelihood = ll; log_prior = lp -. log_pa}} :: !left
+        | {value = Right(_,b);
+           like_prior = {log_likelihood = ll; log_prior = lp}} -> 
+            right := {value = b; like_prior = {log_likelihood = ll; log_prior = lp -. log_pb}} :: !right
+    done;
+    (Array.of_list !left,
+     Array.of_list !right)
+
 let should_accept_swap_with_higher_beta beta {like_prior = {log_likelihood = ll}} beta' {like_prior = {log_likelihood = oll}} = 
   let log_paccept = (beta'/.beta -. 1.0)*.ll +. (beta/.beta' -. 1.0)*.oll in
     (log (Random.float 1.0)) < log_paccept
