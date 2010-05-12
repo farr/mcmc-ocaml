@@ -177,7 +177,11 @@ let test_memory_rjmcmc_top_hats () =
   let log_prior x = if 0.0 <= x && x <= 1.0 then 0.0 else neg_infinity in 
   let log_like1 x = log_prior x and 
       log_like2 x = if 0.25 <= x && x <= 0.75 then 0.0 else neg_infinity in 
-  let jump_proposal x = Mcmc.uniform_wrapping 0.0 1.0 0.1 x and 
+  let jump_proposal x = 
+    if Random.float 1.0 < 0.99 then
+      Mcmc.uniform_wrapping 0.0 1.0 0.1 x 
+    else
+      Random.float 1.0 and
       log_jump_prob _ _ = 0.0 in 
   let samples = 
     Mcmc.memory_rjmcmc_array
@@ -199,15 +203,14 @@ let test_memory_rjmcmc_top_hats () =
     assert_equal_float ~epsabs:0.5 2.0 r
 
 let test_memory_rjmcmc_1d () = 
-  let log_prior _ = 0.0 and 
+  let log_prior x = if -5.0 <= x && x <= 5.0 then log 0.1 else neg_infinity and
       log_likelihood lf x = lf +. Stats.log_gaussian 0.0 1.0 x in 
   let jump_proposal x = 
-    if Random.float 1.0 < 0.25 then 
-      x +. Random.float 0.5
+    if Random.float 1.0 < 0.5 then 
+      10.0*.(Random.float 1.0) -. 5.0
     else
-      x -. Random.float 0.5 in
-  let log_jump_prob x y = 
-    if y > x then log 0.25 else log 0.75 in 
+      Mcmc.uniform_wrapping (-5.0) 5.0 1.0 x in
+  let log_jump_prob x y = 0.0 in 
   let samples = 
     Mcmc.memory_rjmcmc_array 
       1000000 
