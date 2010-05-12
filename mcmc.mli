@@ -95,10 +95,7 @@ type ('a, 'b) rjmcmc_sample = ('a, 'b) rjmcmc_value mcmc_sample
 
     - [transition_jump_proposals] is a pair of functions that each
     produce a proposed jump into the model (from the opposite
-    model).  For now, we assume that the models are totally separate
-    (i.e. that one is not a superset of the other), so the proposal
-    does not depend on the current state (in the other model).  This
-    is the most likely property of [make_rjmcmc_sampler] to change.
+    model).  
 
     - [log_transition_jump_probabilities] is a pair of functions that
     return the log of the probability to propose a transition jump
@@ -121,8 +118,8 @@ val make_rjmcmc_sampler :
   ('a -> float) * ('b -> float) -> 
   ('a -> 'a) * ('b -> 'b) -> 
   ('a -> 'a -> float) * ('b -> 'b -> float) -> 
-  (unit -> 'a) * (unit -> 'b) -> 
-  ('a -> float) * ('b -> float) -> 
+  ('b -> 'a) * ('a -> 'b) -> 
+  ('b -> 'a -> float) * ('a -> 'b -> float) -> 
   float * float -> 
   ('a, 'b) rjmcmc_sample -> ('a, 'b) rjmcmc_sample
 
@@ -142,8 +139,8 @@ val rjmcmc_array :
   ('a -> float) * ('b -> float) -> 
   ('a -> 'a) * ('b -> 'b) -> 
   ('a -> 'a -> float) * ('b -> 'b -> float) -> 
-  (unit -> 'a) * (unit -> 'b) -> 
-  ('a -> float) * ('b -> float) -> 
+  ('b -> 'a) * ('a -> 'b) -> 
+  ('b -> 'a -> float) * ('a -> 'b -> float) -> 
   float * float -> 
   'a * 'b -> ('a, 'b) rjmcmc_sample array 
 
@@ -153,6 +150,10 @@ val rjmcmc_array :
     of times [A(_)] appears in [samples]; the second is the number of
     times [B(_)] appears. *)
 val rjmcmc_model_counts : ('a, 'b) rjmcmc_sample array -> (int * int)
+
+(** [rjmcmc_evidence_ratio samples] returns the evidence ratio between
+    the models comprising the given samples. *)
+val rjmcmc_evidence_ratio : ('a, 'b) rjmcmc_sample array -> float
 
 (** [combine_jump_proposals \[(p1, jump1, log_jump_prob1); ...\]]
     combines the given list of jump proposals into a single jump

@@ -75,20 +75,20 @@ let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, j
         if Random.float 1.0 < pa then 
           A(jpa a)
         else
-          B(jintob ())
+          B(jintob a)
     | B(b) -> 
         if Random.float 1.0 < pb then 
           B(jpb b)
         else
-          A(jintoa ()) and 
+          A(jintoa b) and 
       log_jump_prob x y = 
     match x,y with 
       | A(a), A(a') -> 
           ljpa a a'
       | A(a), B(b) -> 
-          (log pb) +. ljpintob b
+          (log pb) +. ljpintob a b
       | B(b), A(a) -> 
-          (log pa) +. ljpintoa a
+          (log pa) +. ljpintoa b a
       | B(b), B(b') -> 
           ljpb b b' and 
       log_like = function 
@@ -125,6 +125,10 @@ let rjmcmc_model_counts data =
         | B(_) -> incr nb
     done;
     (!na, !nb)
+
+let rjmcmc_evidence_ratio samples = 
+  let (na,nb) = rjmcmc_model_counts samples in 
+    (float_of_int na) /. (float_of_int nb)
 
 let log_sum_logs la lb = 
   if la = neg_infinity && lb = neg_infinity then 

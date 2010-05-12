@@ -119,12 +119,12 @@ let test_rjmcmc_gaussians () =
       sigma2 = Random.float 1.0 in
   let propose1 x = Stats.draw_gaussian mu1 sigma1 and 
       propose2 x = Stats.draw_gaussian mu2 sigma2 and 
-      propose_into1 () = Stats.draw_gaussian mu1 sigma1 and 
-      propose_into2 () = Stats.draw_gaussian mu2 sigma2 in 
+      propose_into1 x = Stats.draw_gaussian mu1 sigma1 and 
+      propose_into2 x = Stats.draw_gaussian mu2 sigma2 in 
   let log_jump1 _ y = Stats.log_gaussian mu1 sigma1 y and 
       log_jump2 _ y = Stats.log_gaussian mu2 sigma2 y and 
-      log_jump_into1 x = Stats.log_gaussian mu1 sigma1 x and 
-      log_jump_into2 x = Stats.log_gaussian mu2 sigma2 x in 
+      log_jump_into1 y x = Stats.log_gaussian mu1 sigma1 x and 
+      log_jump_into2 y x = Stats.log_gaussian mu2 sigma2 x in 
   let log_like1 x = 0.5 *. (log_gaussian mu1 sigma1 x) and 
       log_like2 x = 0.3 *. (log_gaussian mu2 sigma2 x) and 
       log_prior1 x = 0.5 *. (log_gaussian mu1 sigma1 x) and 
@@ -144,6 +144,40 @@ let test_rjmcmc_gaussians () =
       p2 = (float_of_int n2) /. (float_of_int (n1+n2)) in 
     assert_equal_float ~epsrel:0.1 0.5 p1;
     assert_equal_float ~epsrel:0.1 0.5 p2
+
+let test_rjmcmc_top_hats_interp () = 
+  let module Interp = Interpolate_pdf.Make(
+    struct
+      type point = float array
+      let coord pt = pt
+      let point coord = coord
+    end) in 
+  let log_prior x = if 0.0 <= x.(0) && 0.0 <= x.(1) && x.(0) <= 1.0 && x.(1) <= 1.0 then 0.0 else neg_infinity in
+  let log_like1 x = log_prior x and 
+      log_like2 x = if 0.25 <= x.(0) && 0.25 <= x.(1) && x.(0) <= 0.75 && x.(1) <= 0.75 then 0.0 else neg_infinity in 
+  let jump_propose x = 
+    let y = Array.make 2 0.0 in 
+      y.(0) <- Mcmc.uniform_wrapping 0.0 1.0 0.5 x.(0);
+      y.(1) <- Mcmc.uniform_wrapping 0.0 1.0 0.5 x.(1);
+      y and 
+      log_jump_prob _ _ = 0.0 in
+  let samps1 = mcmc_array ~nskip:100 10000 log_like1 log_prior jump_propose log_jump_prob [|0.5; 0.5|] and 
+      samps2 = mcmc_array ~nskip:100 10000 log_like2 log_prior jump_propose log_jump_prob [|0.5; 0.5|] in
+  let interp1 = Interp.make (Array.map (fun {Mcmc.value = v} -> v) samps1) [|0.0; 0.0|] [|1.0; 1.0|]  and 
+      interp2 = Interp.make (Array.map (fun {Mcmc.value = v} -> v) samps2) [|0.0; 0.0|] [|1.0; 1.0|] in 
+  let samples = rjmcmc_array ~nskip:10 1000000 
+    (log_like1, log_like2)
+    (log_prior, log_prior)
+    (jump_propose, jump_propose)
+    (log_jump_prob, log_jump_prob)
+    ((fun _ -> Interp.draw interp1), 
+     (fun _ -> Interp.draw interp2))
+    ((fun _ pt -> log (Interp.jump_prob interp1 pt pt)),
+     (fun _ pt -> log (Interp.jump_prob interp2 pt pt)))
+    (0.5, 0.5)
+    ([|0.5; 0.5|], [|0.5; 0.5|]) in 
+  let r = Mcmc.rjmcmc_evidence_ratio samples in
+    assert_equal_float ~epsabs:0.1 4.0 r  
 
 let test_combine_jump_proposal () = 
   let nsamples = 1000000 in 
@@ -177,4 +211,5 @@ let tests = "mcmc.ml tests" >:::
    "prior*like = gaussian, uniform jump" >:: test_prior_like;
    "remove_repeat" >:: test_remove_repeat;
    "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
+   "rjmcmc on top-hat in 2-D, using Interpolated" >:: test_rjmcmc_top_hats_interp;
    "combine_jump_proposal" >:: test_combine_jump_proposal]
