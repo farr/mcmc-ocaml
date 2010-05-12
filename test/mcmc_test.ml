@@ -226,13 +226,6 @@ let test_memory_rjmcmc_top_hats () =
       (log_jump_prob, log_jump_prob)
       (0.5, 0.5)
       (0.5, 0.5) in 
-  let (sa, sb) = Mcmc.split_memory_array (0.5, 0.5) samples in 
-  let aout = open_out "asamples.dat" and 
-      bout = open_out "bsamples.dat" in 
-    Read_write.write (fun x -> [| x |]) aout sa;
-    Read_write.write (fun x -> [| x |]) bout sb;
-    close_out aout;
-    close_out bout;
   let r = Mcmc.memory_evidence_ratio samples in 
     assert_equal_float ~epsabs:0.5 2.0 r
 
