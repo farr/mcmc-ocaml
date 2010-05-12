@@ -206,22 +206,22 @@ let test_memory_rjmcmc_1d () =
   let log_prior x = if -5.0 <= x && x <= 5.0 then log 0.1 else neg_infinity and
       log_likelihood lf x = lf +. Stats.log_gaussian 0.0 1.0 x in 
   let jump_proposal x = 
-    if Random.float 1.0 < 0.5 then 
-      10.0*.(Random.float 1.0) -. 5.0
+    if Random.float 1.0 < 0.99 then 
+      Mcmc.uniform_wrapping (-5.0) 5.0 1.0 x 
     else
-      Mcmc.uniform_wrapping (-5.0) 5.0 1.0 x in
+      10.0*.(Random.float 1.0) -. 5.0 in
   let log_jump_prob x y = 0.0 in 
   let samples = 
     Mcmc.memory_rjmcmc_array 
       1000000 
-      (log_likelihood 0.5, log_likelihood 1.0) 
+      (log_likelihood (log 0.5), log_likelihood 0.0) 
       (log_prior, log_prior)
       (jump_proposal, jump_proposal)
       (log_jump_prob, log_jump_prob)
       (0.5, 0.5)
       (0.0, 0.0) in
   let r = Mcmc.memory_evidence_ratio samples in 
-    assert_equal_float ~epsrel:0.1 0.5 r
+    assert_equal_float ~epsrel:0.2 0.5 r
 
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
