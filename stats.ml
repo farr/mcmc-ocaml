@@ -143,3 +143,46 @@ let find_nth ?(copy = true) nth (xs : float array) =
           find_nth_loop ilow (nth - (ilow - start)) endd
     end in 
     find_nth_loop 0 nth (Array.length xs)
+
+let all_equal compare xs start endd = 
+  let x0 = xs.(start) in 
+  let rec ae_loop i = 
+    if i >= endd then 
+      true
+    else if compare x0 xs.(i) = 0 then 
+      ae_loop (i+1)
+    else
+      false in 
+    ae_loop (start+1)
+      
+let find_nthf ?(copy = true) compare nth xs = 
+  if nth < 0 || nth >= Array.length xs then raise (Invalid_argument "find_nthf: nth outside array bounds");
+  let xs = if copy then Array.copy xs else xs in 
+  let rec find_nth_loop start nth endd = 
+    if endd - start = 1 then 
+      if nth <> 0 then 
+        raise (Failure "find_nthf: nth index not in array bounds")
+      else
+        xs.(start)
+    else if all_equal compare xs start endd then 
+      xs.(start)
+    else begin
+      let part = xs.(start + (Random.int (endd - start))) in 
+      let rec swap_loop low high = 
+        let new_low = let rec new_low_loop l = 
+                        if l >= endd then l else if compare xs.(l) part <= 0 then new_low_loop (l+1) else l in new_low_loop low and
+            new_high = let rec new_high_loop h = 
+                         if h < start then h else if compare xs.(h) part > 0 then new_high_loop (h-1) else h in new_high_loop high in
+          if new_low > new_high then new_low else if new_low >= endd then endd else if new_high < start then new_low else begin
+            let tmp = xs.(new_low) in 
+              xs.(new_low) <- xs.(new_high);
+              xs.(new_high) <- tmp;
+              swap_loop new_low new_high
+          end in
+      let ilow = swap_loop start (endd - 1) in
+        if nth < (ilow - start) then 
+          find_nth_loop start nth ilow
+        else
+          find_nth_loop ilow (nth - (ilow - start)) endd
+    end in 
+    find_nth_loop 0 nth (Array.length xs)

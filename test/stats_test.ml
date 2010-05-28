@@ -75,6 +75,22 @@ let test_find_nth () =
         assert_bool "xs not disordered" (not (xs = cxs))
   done
 
+let icompare (x : int) y = Pervasives.compare x y
+
+let test_find_nthf () = 
+  for i = 0 to 100 do 
+    let n = 10 + Random.int 25 in 
+    let xs = Array.init n (fun _ -> Random.int 100) in
+    let sxs = Array.copy xs and 
+        cxs = Array.copy xs in 
+      Array.fast_sort icompare sxs;
+      let i = Random.int n in 
+        assert_equal ~cmp:(=) ~printer:string_of_int sxs.(i) (find_nthf ~copy:true icompare i xs);
+        assert_bool "xs changed by find_nthf" (xs = cxs);
+        assert_equal ~cmp:(=) ~printer:string_of_int sxs.(i) (find_nthf ~copy:false icompare i xs);
+        assert_bool "xs not disordered" (not (xs = cxs))
+  done
+
 let tests = "stats.ml tests" >:::
   ["mean" >:: test_mean;
    "randomized mean" >:: test_mean_random;
@@ -85,4 +101,5 @@ let tests = "stats.ml tests" >:::
    "multi_mean" >:: test_multi_mean;
    "meanf and stdf" >:: test_meanf_stdf;
    "multi_std" >:: test_multi_std;
-   "find_nth" >:: test_find_nth]
+   "find_nth" >:: test_find_nth;
+   "find_nthf" >:: test_find_nthf]
