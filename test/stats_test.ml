@@ -59,6 +59,22 @@ let test_meanf_stdf () =
     assert_equal_float (mean xs) (meanf (fun x -> x) xs);
     assert_equal_float (std ~mean:(mean xs) xs) (stdf ~mean:(mean xs) (fun x -> x) xs)
 
+let fcompare (x : float) y = Pervasives.compare x y
+
+let test_find_nth () = 
+  for i = 0 to 100 do 
+    let n = 10 + Random.int 25 in 
+    let xs = Array.init n (fun _ -> Random.float 1.0) in 
+    let sxs = Array.copy xs in 
+    let cxs = Array.copy xs in 
+      Array.fast_sort fcompare sxs;
+      let i = Random.int n in
+        assert_equal ~cmp:(=) ~printer:string_of_float sxs.(i) (find_nth ~copy:true i xs);
+        assert_bool "xs changed by find_nth" (xs = cxs);
+        assert_equal ~cmp:(=) ~printer:string_of_float sxs.(i) (find_nth ~copy:false i xs);
+        assert_bool "xs not disordered" (not (xs = cxs))
+  done
+
 let tests = "stats.ml tests" >:::
   ["mean" >:: test_mean;
    "randomized mean" >:: test_mean_random;
@@ -68,4 +84,5 @@ let tests = "stats.ml tests" >:::
    "randomized gaussian draws" >:: test_gaussian_random;
    "multi_mean" >:: test_multi_mean;
    "meanf and stdf" >:: test_meanf_stdf;
-   "multi_std" >:: test_multi_std]
+   "multi_std" >:: test_multi_std;
+   "find_nth" >:: test_find_nth]
