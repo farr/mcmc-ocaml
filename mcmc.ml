@@ -39,19 +39,21 @@ let make_mcmc_sampler log_likelihood log_prior jump_proposal log_jump_prob =
         x
       end
 
-let mcmc_array ?(nskip = 1) n log_likelihood log_prior jump_proposal log_jump_prob start = 
+let mcmc_array ?(nbin = 0) ?(nskip = 1) n log_likelihood log_prior jump_proposal log_jump_prob start = 
   let current_sample = ref {value = start;
                   like_prior = {log_likelihood = log_likelihood start;
                                 log_prior = log_prior start}} in
-    
-  let samples = Array.make n !current_sample in 
   let sample = make_mcmc_sampler log_likelihood log_prior jump_proposal log_jump_prob in 
-    for i = 1 to (n - 1) * nskip do 
-      current_sample := sample !current_sample;
-      if i mod nskip = 0 then 
-        samples.(i / nskip) <- !current_sample
+    for i = 0 to nbin - 1 do 
+      current_sample := sample !current_sample
     done;
-    samples
+    let samples = Array.make n !current_sample in 
+      for i = 1 to (n - 1) * nskip do 
+        current_sample := sample !current_sample;
+        if i mod nskip = 0 then 
+          samples.(i / nskip) <- !current_sample
+      done;
+      samples
 
 let remove_repeat_samples eql samps = 
   let removed = ref [] in 

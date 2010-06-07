@@ -43,15 +43,15 @@ val make_mcmc_sampler : ('a -> float) -> ('a -> float) ->
   ('a -> 'a) -> ('a -> 'a -> float) -> 
   ('a mcmc_sample -> 'a mcmc_sample)
 
-(** [mcmc_array ?nskip n_samples log_likelihood log_prior
+(** [mcmc_array ?nbin ?nskip n_samples log_likelihood log_prior
     jump_proposal log_jump_prob start] construts an array of samples
     of length [n_samples] from the MCMC chain described by the given
-    parameters (see {!Mcmc.make_mcmc_sampler}).  The first sample in
-    the array is always [start].  If [nskip] is provided, it is the
-    number of states to produce before recording a state in the array
-    ([nskip] defaults to 1, which causes every state produced by the
-    sampler to be recorded). *)
-val mcmc_array : ?nskip : int -> int -> ('a -> float) -> ('a -> float) -> 
+    parameters (see {!Mcmc.make_mcmc_sampler}).  [nbin] samples are
+    initially discarded as burn-in.  If [nskip] is provided, it is the
+    number of samples to produce before recording a sample in the
+    array ([nskip] defaults to 1, which causes every state produced by
+    the sampler to be recorded). *)
+val mcmc_array : ?nbin : int -> ?nskip : int -> int -> ('a -> float) -> ('a -> float) -> 
   ('a -> 'a) -> ('a -> 'a -> float) -> 
   'a -> ('a mcmc_sample) array
 
