@@ -54,7 +54,7 @@ val log_gaussian : float -> float -> float -> float
     leaving the array in sorted order). *)
 val find_nth : ?copy : bool -> int -> float array -> float
 
-(** find_nthf ?copy compare n xs] returns the [n]th element of [xs]
+(** [find_nthf ?copy compare n xs] returns the [n]th element of [xs]
     ordered ascending in the given comparison function.  The [?copy]
     parameter governs whether a copy of [xs] is made before the
     search; if not, then the array [xs] will be disordered on return.
