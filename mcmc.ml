@@ -169,14 +169,14 @@ let combine_jump_proposals props =
 
 let uniform_wrapping xmin xmax dx x = 
   let delta_x = (Random.float 1.0 -. 0.5)*.dx in 
-  let delta_x = mod_float delta_x (xmax -. xmin) in 
-  let xnew = x +. delta_x in 
-    if xnew > xmax then 
-      xmin +. (xnew -. xmax)
-    else if xnew < xmin then 
-      xmax -. (xmin -. xnew)
+  let rec loop new_x = 
+    if new_x < xmin then 
+      loop (xmin +. (xmin -. new_x))
+    else if new_x >= xmax then 
+      loop (xmax -. (new_x -. xmax))
     else
-      xnew
+      new_x in 
+    loop (x +. delta_x)
 
 let should_accept_swap_with_higher_beta beta {like_prior = {log_likelihood = ll}} beta' {like_prior = {log_likelihood = oll}} = 
   let log_paccept = (beta'/.beta -. 1.0)*.ll +. (beta/.beta' -. 1.0)*.oll in
