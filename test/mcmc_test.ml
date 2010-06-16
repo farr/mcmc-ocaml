@@ -207,49 +207,6 @@ let test_combine_jump_proposal () =
     assert_equal_float ~epsabs:0.05 0.0 mu;
     assert_equal_float ~epsrel:1e-2 1.0 sigma
 
-let test_memory_rjmcmc_top_hats () = 
-  let log_prior x = if 0.0 <= x && x <= 1.0 then 0.0 else neg_infinity in 
-  let log_like1 x = log_prior x and 
-      log_like2 x = if 0.25 <= x && x <= 0.75 then 0.0 else neg_infinity in 
-  let jump_proposal x = 
-    if Random.float 1.0 < 0.99 then
-      Mcmc.uniform_wrapping 0.0 1.0 0.1 x 
-    else
-      Random.float 1.0 and
-      log_jump_prob _ _ = 0.0 in 
-  let samples = 
-    Mcmc.memory_rjmcmc_array
-      1000000
-      (log_like1, log_like2)
-      (log_prior, log_prior)
-      (jump_proposal, jump_proposal)
-      (log_jump_prob, log_jump_prob)
-      (0.5, 0.5)
-      (0.5, 0.5) in 
-  let r = Mcmc.memory_evidence_ratio samples in 
-    assert_equal_float ~epsabs:0.5 2.0 r
-
-let test_memory_rjmcmc_1d () = 
-  let log_prior x = if -5.0 <= x && x <= 5.0 then log 0.1 else neg_infinity and
-      log_likelihood lf x = lf +. Stats.log_gaussian 0.0 1.0 x in 
-  let jump_proposal x = 
-    if Random.float 1.0 < 0.99 then 
-      Mcmc.uniform_wrapping (-5.0) 5.0 1.0 x 
-    else
-      10.0*.(Random.float 1.0) -. 5.0 in
-  let log_jump_prob x y = 0.0 in 
-  let samples = 
-    Mcmc.memory_rjmcmc_array 
-      1000000 
-      (log_likelihood (log 0.5), log_likelihood 0.0) 
-      (log_prior, log_prior)
-      (jump_proposal, jump_proposal)
-      (log_jump_prob, log_jump_prob)
-      (0.5, 0.5)
-      (0.0, 0.0) in
-  let r = Mcmc.memory_evidence_ratio samples in 
-    assert_equal_float ~epsrel:0.2 0.5 r
-
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
    "gaussian posterior, left-biased jump proposal" >:: test_gaussian_post_left_biased_proposal;
@@ -257,6 +214,4 @@ let tests = "mcmc.ml tests" >:::
    "remove_repeat" >:: test_remove_repeat;
    "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
    "rjmcmc on top-hat in 2-D, using Interpolated" >:: test_rjmcmc_top_hats_interp;
-   "combine_jump_proposal" >:: test_combine_jump_proposal;
-   "memory_rjmcmc with top hat posteriors" >:: test_memory_rjmcmc_top_hats;
-   "memory_rjmcmc gaussians in 1-D" >:: test_memory_rjmcmc_1d]
+   "combine_jump_proposal" >:: test_combine_jump_proposal]

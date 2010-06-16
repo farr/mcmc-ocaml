@@ -171,62 +171,6 @@ val combine_jump_proposals :
     ([dx] must be smaller than the range [xmax -. xmin].) *)
 val uniform_wrapping : float -> float -> float -> float -> float
 
-(** Type of two-model samples with memory.  The [Left] and [Right] tag
-    records the "currently active" state of the model. *)
-type ('a, 'b) memory = 
-    private
-  | Left of 'a * 'b
-  | Right of 'a * 'b
-
-(** [make_memory_rjmcmc_sampler (log_like_left, log_like_right)
-    (log_prior_left, log_prior_right) (jump_proposal_left,
-    jump_proposal_right) (log_jump_prob_left, log_jump_prob_right)
-    (log_model_prior_left, log_model_prior_right)] constructs an MCMC
-    sampler for comparing two models.  The sampler records the
-    "currently active" state (either [Left] or [Right]); the other
-    component of the state is a "memory" of the "current" location in
-    the other model.  When proposing jumps between models, we always
-    propose within one jump of the current locations in each model;
-    when proposing jumps within a model, we fix the inactive position.
-    In this way, we get both samples of the PDF within each model and,
-    by comparing the ratio of counts with each model active, an
-    estimate of the evidence ratio between the models. *)
-val make_memory_rjmcmc_sampler : 
-  ('a -> float) * ('b -> float) -> 
-  ('a -> float) * ('b -> float) -> 
-  ('a -> 'a) * ('b -> 'b) -> 
-  ('a -> 'a -> float) * ('b -> 'b -> float) -> 
-  float * float -> 
-  ('a, 'b) memory mcmc_sample -> ('a, 'b) memory mcmc_sample
-
-(** Like {!Mcmc.mcmc_array}, but for {!Mcmc.make_memory_rjmcmc_sampler}. *)
-val memory_rjmcmc_array : 
-  ?nskip : int -> 
-  int -> 
-  ('a -> float) * ('b -> float) -> 
-  ('a -> float) * ('b -> float) -> 
-  ('a -> 'a) * ('b -> 'b) -> 
-  ('a -> 'a -> float) * ('b -> 'b -> float) -> 
-  float * float -> 
-  'a * 'b -> ('a, 'b) memory mcmc_sample array
-
-(** [memory_rjmcmc_model_counts samples] returns the number of samples
-    in the [Left] and [Right] states of the rjmcmc. *)
-val memory_rjmcmc_model_counts : ('a, 'b) memory mcmc_sample array -> int * int
-
-(** [memory_evidence_ratio samples] computes an estimate of the
-    evidence ratio between the models composing [samples]. *)
-val memory_evidence_ratio : ('a, 'b) memory mcmc_sample array -> float
-
-(** [split_memory_array (pa,pb) samples] returns two arrays from the
-    memory rjmcmc samples in [samples].  Each array could, in
-    principle, be the output of an individual MCMC in each of the
-    models.  [pa] and [pb] are the priors for the two models; these
-    are needed to recreate the correct priors {b within} the models
-    from the memory rjmcmc priors. *)
-val split_memory_array : float * float -> ('a, 'b) memory mcmc_sample array -> 
-  'a mcmc_sample array * 'b mcmc_sample array
-
 (** [pt_beta ()] returns the current [beta] value based on this
     process' rank in the [Mpi.comm_world].  [beta] is used to "temper"
     the likelihood: [log_like = beta *. true_log_like].  The [beta]
