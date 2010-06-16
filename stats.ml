@@ -100,6 +100,10 @@ let draw_gaussian mu sigma =
         mu +. sigma*.v/.u in 
     loop ()
 
+let draw_uniform a b = 
+  let d = b -. a in 
+    a +. d*.(Random.float 1.0)
+
 let all_equal_float (xs : float array) start endd = 
   let x0 = xs.(start) in 
   let rec ae_loop i = 

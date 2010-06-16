@@ -44,6 +44,10 @@ val draw_gaussian : float -> float -> float
 (** [log_gaussian mu sigma x] returns the log of the Gaussian PDF with
     mean [mu] and standard deviation [sigma] at [x]. *)
 val log_gaussian : float -> float -> float -> float
+
+(** [draw_unifrom min max] returns a uniformly distributed random
+    number between [min] and [max]. *)
+val draw_unifrom : float -> float -> float
   
 (** [find_nth ?copy n xs] returns the [n]th element of [xs] in
     ascending order.  The [?copy] parameter governs whether a copy of
