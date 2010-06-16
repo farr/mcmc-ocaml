@@ -101,7 +101,7 @@ let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, j
         | B(b) -> (log pb) +. lpb b in 
     make_mcmc_sampler log_like log_prior jump_proposal log_jump_prob
 
-let rjmcmc_array ?(nskip = 1) n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) 
+let rjmcmc_array ?(nbin = 0) ?(nskip = 1) n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) 
     (ljpintoa, ljpintob) (pa,pb) (a,b) = 
   let is_a = Random.float 1.0 < pa in 
   let next_state = 
@@ -110,13 +110,16 @@ let rjmcmc_array ?(nskip = 1) n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (j
       log_like = if is_a then lla a else llb b and 
       log_prior = if is_a then lpa a +. (log pa) else lpb b +. (log pb) in 
   let current_state = ref {value = value; like_prior = {log_likelihood = log_like; log_prior = log_prior}} in
-  let states = Array.make n !current_state in 
-    for i = 1 to (n-1) * nskip do 
-      current_state := next_state !current_state;
-      if i mod nskip = 0 then 
-        states.(i/nskip) <- !current_state
+    for i = 0 to nbin - 1 do 
+      current_state := next_state !current_state
     done;
-    states
+    let states = Array.make n !current_state in 
+      for i = 1 to (n-1) * nskip do 
+        current_state := next_state !current_state;
+        if i mod nskip = 0 then 
+          states.(i/nskip) <- !current_state
+      done;
+      states
 
 let rjmcmc_model_counts data = 
   let na = ref 0 and 

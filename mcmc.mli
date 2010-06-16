@@ -123,7 +123,7 @@ val make_rjmcmc_sampler :
   float * float -> 
   ('a, 'b) rjmcmc_sample -> ('a, 'b) rjmcmc_sample
 
-(** [rjmcmc_array ?nskip n log_likelihoods log_priors
+(** [rjmcmc_array ?nbin ?nskip n log_likelihoods log_priors
     internal_jump_proposals log_internal_jump_probabilities
     transition_jump_proposals log_transition_jump_probabilities
     model_priors initial_states] produces an array of reverse-jump
@@ -133,6 +133,7 @@ val make_rjmcmc_sampler :
     model priors).  See {!Mcmc.make_rjmcmc_sampler} for a description
     of the arguments. *)
 val rjmcmc_array : 
+  ?nbin : int -> 
   ?nskip : int -> 
   int -> 
   ('a -> float) * ('b -> float) -> 
