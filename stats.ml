@@ -190,3 +190,10 @@ let find_nthf ?(copy = true) compare nth xs =
           find_nth_loop ilow (nth - (ilow - start)) endd
     end in 
     find_nth_loop 0 nth (Array.length xs)
+
+let log_lognormal mu sigma x = 
+  let lx = log x in 
+  let d = (lx -. mu)/.sigma in 
+  let ls = log sigma in 
+    -0.91893853320467274178 -. lx -. ls -. 0.5*.d*.d
+    

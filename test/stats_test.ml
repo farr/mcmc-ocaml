@@ -91,6 +91,13 @@ let test_find_nthf () =
         assert_bool "xs not disordered" (not (xs = cxs))
   done
 
+let test_log_lognormal () = 
+  let mu = 0.328077 and 
+      sigma = 0.330877 and
+      x = 0.0553941 in
+  let ln = log_lognormal mu sigma x in
+    assert_equal_float ~epsabs:1e-3 (-44.3128) ln
+
 let tests = "stats.ml tests" >:::
   ["mean" >:: test_mean;
    "randomized mean" >:: test_mean_random;
@@ -102,4 +109,5 @@ let tests = "stats.ml tests" >:::
    "meanf and stdf" >:: test_meanf_stdf;
    "multi_std" >:: test_multi_std;
    "find_nth" >:: test_find_nth;
-   "find_nthf" >:: test_find_nthf]
+   "find_nthf" >:: test_find_nthf;
+   "log_lognormal" >:: test_log_lognormal]

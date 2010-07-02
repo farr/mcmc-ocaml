@@ -45,6 +45,12 @@ val draw_gaussian : float -> float -> float
     mean [mu] and standard deviation [sigma] at [x]. *)
 val log_gaussian : float -> float -> float -> float
 
+(** [log_lognormal mu sigma x] returns the log of the log-normal PDF.
+    Note that [mu] and [sigma] are the corresponding parameters in the
+    log-normal distribution, and are not the mean and standard
+    deviation. *)
+val log_lognormal : float -> float -> float -> float
+
 (** [draw_uniform min max] returns a uniformly distributed random
     number between [min] and [max]. *)
 val draw_uniform : float -> float -> float
