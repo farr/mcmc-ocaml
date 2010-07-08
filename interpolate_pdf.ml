@@ -59,7 +59,7 @@ module Make(S : PROB_SPACE) : INTERPOLATE_PDF with type point = S.point = struct
       done;
       x
 
-  let in_bounds pt low high = 
+  let in_bounds pt (low : float array) (high : float array) = 
     let i = ref 0 and 
         n = Array.length pt in 
       while (!i < n) && (pt.(!i) >= low.(!i)) && (pt.(!i) <= high.(!i)) do 
