@@ -19,6 +19,11 @@ val write_sample : ('a -> float array) -> out_channel -> 'a Mcmc.mcmc_sample -> 
     coordinates. *)
 val write : ('a -> float array) -> out_channel -> ('a Mcmc.mcmc_sample array) -> unit
 
+(** [read_sample from_coords chan] reads a single line from the given
+    channel and interprets it as a single sample written with
+    write_sample, returning the corresponding sample. *)
+val read_sample : (float array -> 'a) -> in_channel -> 'a Mcmc.mcmc_sample
+
 (** [read from_coords chan] reads from [chan] until an EOF is
     encountered a sequence of lines.  Each line contains some
     coordinates for a sample value ([from_coords] converts between
