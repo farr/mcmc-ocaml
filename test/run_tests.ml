@@ -1,7 +1,8 @@
 open OUnit
 
 let tests = "all denest tests" >:::
-  ["evidence.ml tests" >: Evidence_test.tests;
+  ["earray.ml tests" >: Earray_test.tests;
+   "evidence.ml tests" >: Evidence_test.tests;
    "interpolate_pdf.ml tests" >: Interpolate_pdf_test.tests;
    "kd_tree.ml tests" >: Kd_tree_test.tests;
    "mcmc.ml tests" >: Mcmc_test.tests;
