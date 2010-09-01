@@ -33,3 +33,6 @@ val make : int -> 'a -> 'a earray
 
 (** Current number of elements in earray. *)
 val length : 'a earray -> int
+
+(** Copy. *)
+val copy : 'a earray -> 'a earray

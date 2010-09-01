@@ -53,10 +53,19 @@ let test_zero_length () =
     done;
     assert_equal (Earray.to_array ea) a
 
+let test_copy () = 
+  let a = random_array 10 50 in 
+  let ea = Earray.of_array a in 
+  let eb = Earray.copy ea in 
+    Earray.set eb 5 0.0;
+    assert_bool "copy changed." (not ((Earray.to_array eb) = a));
+    assert_equal ~msg:"original unchanged" (Earray.to_array ea) a
+
 let tests = "earray.ml tests" >:::
   ["to_array, of_array" >:: test_to_of_array;
    "test_append" >:: test_append;
    "get set tests" >:: test_get_set;
    "chop and length" >:: test_chop_length;
    "make" >:: test_make;
-   "zero-length make and set past end" >:: test_zero_length]
+   "zero-length make and set past end" >:: test_zero_length;
+   "test copy" >:: test_copy]

@@ -50,3 +50,7 @@ let length ev = ev.size
 let of_array arr = 
   {elts = Array.copy arr;
    size = Array.length arr}
+
+let copy ea = 
+  {elts = Array.copy ea.elts;
+   size = ea.size}
