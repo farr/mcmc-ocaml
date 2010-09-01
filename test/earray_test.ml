@@ -45,9 +45,18 @@ let test_chop_length () =
 let test_make () = 
   assert_equal (Earray.to_array (Earray.make 25 1.3)) (Array.make 25 1.3)
 
+let test_zero_length () = 
+  let a = random_array 10 50 in 
+  let ea = Earray.make 0 0.0 in 
+    for i = 0 to Array.length a - 1 do 
+      Earray.set ea i a.(i)
+    done;
+    assert_equal (Earray.to_array ea) a
+
 let tests = "earray.ml tests" >:::
   ["to_array, of_array" >:: test_to_of_array;
    "test_append" >:: test_append;
    "get set tests" >:: test_get_set;
    "chop and length" >:: test_chop_length;
-   "make" >:: test_make]
+   "make" >:: test_make;
+   "zero-length make and set past end" >:: test_zero_length]

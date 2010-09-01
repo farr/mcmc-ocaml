@@ -7,7 +7,9 @@ type 'a earray
 (** Retrieve values. *)
 val get : 'a earray -> int -> 'a
 
-(** Set values. *)
+(** Set values.  The index is allowed to point one past the end of the
+    array; in this special case, [set ea i x] is equivalent to [append ea
+    x]. *)
 val set : 'a earray -> int -> 'a -> unit
 
 (** Convert to regular array.  The exten*)
