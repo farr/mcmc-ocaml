@@ -25,9 +25,13 @@ module type EVIDENCE = sig
   (** Construct a kD tree. *)
   val kd_tree_of_samples : sample array -> float array -> float array -> Kd.tree
 
-  (** Directly integrate evidence within the rectangular region in
-      parameter space between the two given arrays. *)
+  (** Directly integrate evidence within the region enclosed by the
+      given samples. *)
   val evidence_direct : ?n : int -> sample array -> float
+
+  (** Directly integrate the evidence using the previously-created
+      tree of samples. *)
+  val evidence_direct_tree : ?n : int -> Kd.tree -> float
 
   (** Integrate evidence using harmonic mean. *)
   val evidence_harmonic_mean : sample array -> float
@@ -74,6 +78,8 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
 
   let log_posterior s = (log_likelihood s) +. (log_prior s)
 
+  let posterior s = exp (log_posterior s)
+
   let compare_inverse_like s1 s2 = Pervasives.compare (~-.(log_likelihood s1)) (~-.(log_likelihood s2))
 
   let evidence_harmonic_mean samples = 
@@ -97,6 +103,10 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
       else 
         f (List.nth ssamp (n/2))
       
+  let mean_sample (f : sample -> float) samples = 
+    let (n, sum) = List.fold_left (fun (n,sum) samp -> (n+1, sum +. (f samp))) (0, 0.0) samples in 
+      sum /. (float_of_int n)
+
   let compare_samples s1 s2 = 
     let {Mcmc.value = v1} = s1 and 
         {Mcmc.value = v2} = s2 in 
@@ -119,21 +129,24 @@ module Make(MO : MCMC_OUT) : EVIDENCE with type params = MO.params = struct
     let lsort = List.sort compare_samples l in 
       rev_remove_dups compare_samples lsort
 
+  let evidence_direct_tree ?(n = 64) tree = 
+    let sub_vs = collect_subvolumes n tree in 
+      List.fold_left
+        (fun integral c -> 
+          match c with 
+            | Kd.Cell(objs, _, _, _, _) ->
+              let (low,high) = Kd.bounds_of_objects objs in 
+              let vol = Kd.bounds_volume low high and 
+                  post = mean_sample posterior objs in 
+                integral +. vol*.post
+            | _ -> raise (Invalid_argument "evidence_direct: bad cell in integral accumulation"))
+        0.0
+        sub_vs
+
   let evidence_direct ?(n = 64) samples = 
     let lsamples = array_to_list_remove_dups samples in
     let (low,high) = Kd.bounds_of_objects lsamples in 
-    let sub_vs = collect_subvolumes n (Kd.tree_of_objects lsamples low high) in 
-      List.fold_left
-        (fun integral c -> 
-           match c with 
-             | Kd.Cell(objs, _, _, _, _) ->
-                 let (low,high) = Kd.bounds_of_objects objs in 
-                 let vol = Kd.bounds_volume low high and 
-                     lp = median_sample log_posterior objs in 
-                   integral +. vol*.(exp lp)
-             | _ -> raise (Invalid_argument "evidence_direct: bad cell in integral accumulation"))
-        0.0
-        sub_vs
+      evidence_direct_tree ~n:n (Kd.tree_of_objects lsamples low high)
 
   let collect_samples_up_to_eps eps samps = 
     let rec collect_samples_loop collected_samples = function 
