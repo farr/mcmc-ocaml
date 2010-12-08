@@ -74,12 +74,12 @@ let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, j
   assert(pa +. pb -. 1.0 < sqrt epsilon_float);
   let jump_proposal = function 
     | A(a) -> 
-        if Random.float 1.0 < pa then 
+        if Random.float 1.0 < 0.5 then
           A(jpa a)
         else
           B(jintob a)
     | B(b) -> 
-        if Random.float 1.0 < pb then 
+        if Random.float 1.0 < 0.5 then 
           B(jpb b)
         else
           A(jintoa b) and 
@@ -103,7 +103,7 @@ let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, j
 
 let rjmcmc_array ?(nbin = 0) ?(nskip = 1) n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) 
     (ljpintoa, ljpintob) (pa,pb) (a,b) = 
-  let is_a = Random.float 1.0 < pa in 
+  let is_a = Random.float 1.0 < 0.5 in 
   let next_state = 
     make_rjmcmc_sampler (lla,llb) (lpa,lpb) (jpa,jpb) (ljpa,ljpb) (jintoa,jintob) (ljpintoa, ljpintob) (pa,pb) in 
   let value = if is_a then A(a) else B(b) and 
