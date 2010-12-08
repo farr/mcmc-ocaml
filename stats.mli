@@ -73,3 +73,13 @@ val find_nth : ?copy : bool -> int -> float array -> float
     algorithm performs a net quicksort, leaving the array in sorted
     order). *)
 val find_nthf : ?copy : bool -> ('a -> 'a -> int) -> int -> 'a array -> 'a
+
+(** [slow_autocorrelation nslides x] returns an array [nslides]
+    elements long.  The element at index zero of this array is the
+    variance of the series [x], and successive elements are the sum of
+    products of elements of [x] with itself shifted in time.  The
+    function is called [slow_autocorrelation] because it does not use
+    fast (i.e. FFT) methods, but rather slow time-slide-and-sum
+    methods to compute the autocorrelation.  The total computation
+    time is O([nslides][n]), where [n] is the length of [x].*)
+val slow_autocorrelation : int -> float array -> float array

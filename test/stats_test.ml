@@ -98,6 +98,14 @@ let test_log_lognormal () =
   let ln = log_lognormal mu sigma x in
     assert_equal_float ~epsabs:1e-3 (-44.3128) ln
 
+let test_slow_autocorrelation () = 
+  let data = 
+    [|-1.44898; -0.0762953; 2.25525; -0.284584; 1.16297; 0.00864677; 0.211493|] in 
+  let ac = Stats.slow_autocorrelation 3 data in 
+    assert_equal_float_array ~epsrel:1e-5 
+      [| 1.000000000000000; -0.117926565125732; -0.043808623348460|]
+      ac
+
 let tests = "stats.ml tests" >:::
   ["mean" >:: test_mean;
    "randomized mean" >:: test_mean_random;

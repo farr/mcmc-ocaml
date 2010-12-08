@@ -197,3 +197,19 @@ let log_lognormal mu sigma x =
   let ls = log sigma in 
     -0.91893853320467274178 -. lx -. ls -. 0.5*.d*.d
     
+let slow_autocorrelation nslides x = 
+  let result = Array.make nslides 0.0 and 
+      n = Array.length x and 
+      mu = mean x and 
+      sigma = std x in
+  let sigma2 = sigma*.sigma in
+    assert(nslides < n);
+    for i = 0 to nslides do 
+      for j = 0 to n - 1 - i do 
+        let dx = x.(j) -. mu and 
+            dxshift = x.(j+i) -. mu in  
+        result.(i) <- result.(i) +. dx*.dxshift/.sigma2
+      done;
+      result.(i) <- result.(i) /. (float_of_int (n-i))
+    done;
+    result
