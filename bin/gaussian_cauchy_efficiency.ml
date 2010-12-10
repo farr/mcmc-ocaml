@@ -12,6 +12,8 @@ end)
 
 let _ = Random.self_init ()
 
+let _ = Printf.eprintf "WARNING: you must modify mcmc.ml to *not* jump between models according to the prior before running this code.\n%!"
+
 let data = [|-1.44898; -0.0762953; 2.25525; -0.284584; 1.16297; 0.00864677; 
             0.211493; -1.03406; -0.304487; 0.868774; -0.489545; -0.179075; 
             -0.139734; 1.76451; -0.979861; -3.02674; -0.946947; 0.846734; 
@@ -77,11 +79,15 @@ let jump params =
 
 let log_jump_prob _ _ = 0.0
 
+let _ = Mcmc.reset_counters ()
 let gsamples = 
   Mcmc.mcmc_array ~nbin:10000 ~nskip:100 10000 gaussian_log_likelihood log_prior jump log_jump_prob [|0.0; 1.0|]
+let (gaccept, greject) = Mcmc.get_counters ()
 
+let _ = Mcmc.reset_counters ()
 let csamples = 
   Mcmc.mcmc_array ~nbin:10000 ~nskip:100 10000 cauchy_log_likelihood log_prior jump log_jump_prob [|0.0; 1.0|]
+let (caccept, creject) = Mcmc.get_counters ()
 
 let _ = 
   let out = open_out "gaussian.dat" in
@@ -94,6 +100,8 @@ let _ =
 let _ = 
   let gev = Ev.evidence_harmonic_mean gsamples and 
       cev = Ev.evidence_harmonic_mean csamples in
+    Printf.eprintf "Gaussian accept %d, reject %d\n" gaccept greject;
+    Printf.eprintf "Cauchy accept %d, reject %d\n" caccept creject;
     Printf.eprintf "Gaussian harmonic mean ev = %g\n" gev;
     Printf.eprintf "Cauchy harmonic mean ev = %g\n" cev;
     Printf.eprintf "Odds Ratio = %g\n" (gev/.cev);
@@ -127,7 +135,7 @@ let do_it n =
 
 let _ = 
   let rec loop i = 
-    if i > 256 then 
+    if i >= 20000 then 
       ()
     else begin
       do_it i;
