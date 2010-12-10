@@ -72,6 +72,7 @@ type ('a, 'b) rjmcmc_sample = ('a, 'b) rjmcmc_value mcmc_sample
 
 let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) (ljpintoa, ljpintob) (pa,pb) = 
   assert(pa +. pb -. 1.0 < sqrt epsilon_float);
+  let log_pa = log pa and log_pb = log pb in
   let jump_proposal = function 
     | A(a) -> 
         if Random.float 1.0 < 0.5 then
@@ -88,17 +89,17 @@ let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, j
       | A(a), A(a') -> 
           ljpa a a'
       | A(a), B(b) -> 
-          (log pb) +. ljpintob a b
+          ljpintob a b
       | B(b), A(a) -> 
-          (log pa) +. ljpintoa b a
+          ljpintoa b a
       | B(b), B(b') -> 
           ljpb b b' and 
       log_like = function 
         | A(a) -> lla a
         | B(b) -> llb b and 
       log_prior = function 
-        | A(a) -> (log pa) +. lpa a
-        | B(b) -> (log pb) +. lpb b in 
+        | A(a) -> log_pa +. lpa a
+        | B(b) -> log_pb +. lpb b in 
     make_mcmc_sampler log_like log_prior jump_proposal log_jump_prob
 
 let rjmcmc_array ?(nbin = 0) ?(nskip = 1) n (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, jintob) 

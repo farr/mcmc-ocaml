@@ -129,7 +129,7 @@ let test_rjmcmc_gaussians () =
       log_like2 x = 0.3 *. (log_gaussian mu2 sigma2 x) and 
       log_prior1 x = 0.5 *. (log_gaussian mu1 sigma1 x) and 
       log_prior2 x = 0.7 *. (log_gaussian mu2 sigma2 x) in 
-  let p1 = 0.5 and p2 = 0.5 in 
+  let p1 = 0.1 and p2 = 0.9 in 
   let samples = rjmcmc_array ~nskip:10 nsamp
     (log_like1,log_like2)
     (log_prior1,log_prior2)
@@ -140,12 +140,12 @@ let test_rjmcmc_gaussians () =
     (p1,p2)
     (mu1, mu2) in 
   let (n1, n2) = rjmcmc_model_counts samples in 
-  let p1 = (float_of_int n1) /. (float_of_int (n1+n2)) and 
-      p2 = (float_of_int n2) /. (float_of_int (n1+n2)) in 
-    assert_equal_float ~epsrel:0.1 0.5 p1;
-    assert_equal_float ~epsrel:0.1 0.5 p2;
+  let pp1 = (float_of_int n1) /. (float_of_int (n1+n2)) and 
+      pp2 = (float_of_int n2) /. (float_of_int (n1+n2)) in 
+    assert_equal_float ~epsrel:0.1 p1 pp1;
+    assert_equal_float ~epsrel:0.1 p2 pp2;
     let r = rjmcmc_evidence_ratio samples in 
-      assert_equal_float ~epsabs:0.1 1.0 r
+      assert_equal_float ~epsabs:0.1 (p1/.p2) r
 
 let test_rjmcmc_top_hats_interp () = 
   let module Interp = Interpolate_pdf.Make(
