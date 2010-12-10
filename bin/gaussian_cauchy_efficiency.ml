@@ -94,10 +94,10 @@ let _ =
 let _ = 
   let gev = Ev.evidence_harmonic_mean gsamples and 
       cev = Ev.evidence_harmonic_mean csamples in
-    Printf.printf "Gaussian harmonic mean ev = %g\n" gev;
-    Printf.printf "Cauchy harmonic mean ev = %g\n" cev;
-    Printf.printf "Ratio = %g\n" (gev/.cev)
-    
+    Printf.eprintf "Gaussian harmonic mean ev = %g\n" gev;
+    Printf.eprintf "Cauchy harmonic mean ev = %g\n" cev;
+    Printf.eprintf "Odds Ratio = %g\n" (gev/.cev);
+    Printf.eprintf "Bayes ratio = %g\n%!" (gev*.pgaussian/.(cev*.pcauchy))
 
 let ginterp = 
   Interp.make (Array.map (fun {Mcmc.value = x} -> x) gsamples) [|mumin; sigmamin|] [|mumax; sigmamax|]
