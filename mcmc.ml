@@ -75,25 +75,25 @@ let make_rjmcmc_sampler (lla, llb) (lpa, lpb) (jpa, jpb) (ljpa, ljpb) (jintoa, j
   let log_pa = log pa and log_pb = log pb in
   let jump_proposal = function 
     | A(a) -> 
-        if Random.float 1.0 < 0.5 then
+        if Random.float 1.0 < pa then
           A(jpa a)
         else
           B(jintob a)
     | B(b) -> 
-        if Random.float 1.0 < 0.5 then 
+        if Random.float 1.0 < pb then 
           B(jpb b)
         else
           A(jintoa b) and 
       log_jump_prob x y = 
     match x,y with 
       | A(a), A(a') -> 
-          ljpa a a'
+        log_pa +. ljpa a a'
       | A(a), B(b) -> 
-          ljpintob a b
+        log_pb +. ljpintob a b
       | B(b), A(a) -> 
-          ljpintoa b a
+        log_pa +. ljpintoa b a
       | B(b), B(b') -> 
-          ljpb b b' and 
+        log_pb +. ljpb b b' and 
       log_like = function 
         | A(a) -> lla a
         | B(b) -> llb b and 
