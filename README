@@ -26,3 +26,7 @@ Various useful example programs can be found in the bin/ subdirectory;
 you can build them with 
 
 ocamlbuild <program_name>.{native,byte}
+
+To clean the code, issue the command 
+
+ocamlbuild -clean
