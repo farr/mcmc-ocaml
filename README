@@ -21,3 +21,8 @@ To build the test suite, you will require oUnit
 to point to your oUnit installation, and then issue 
 
 ocamlbuild run_tests.{native,byte}
+
+Various useful example programs can be found in the bin/ subdirectory;
+you can build them with 
+
+ocamlbuild <program_name>.{native,byte}
