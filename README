@@ -1,0 +1,23 @@
+This library implements an general MCMC sampler and associated
+libraries, including 
+
+* The methods described in Farr and Mandel (2011) for interpolating
+  jump proposals in a reversible jump MCMC.
+
+* The evidence calculation methods from Weinberg's paper on Computing
+  the Bayesian Factor from a Markov chain Monte Carlo Simulation of
+  the Posterior Distribution (http://arxiv.org/abs/0911.1777 ).
+
+To build the library, use ocamlbuild:
+
+ocamlbuild mcmc.cma mcmc.cmxa
+
+To build the code documentation:
+
+ocamlbuild mcmc.docdir/index.html
+
+To build the test suite, you will require oUnit
+(http://ounit.forge.ocamlcore.org/ ).  Edit the myocamlbuild.ml file
+to point to your oUnit installation, and then issue 
+
+ocamlbuild run_tests.{native,byte}
