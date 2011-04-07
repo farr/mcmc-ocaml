@@ -3,8 +3,9 @@ SUMMARY
   This library implements an general MCMC sampler and associated
   libraries, including
 
-  * The methods described in Farr and Mandel (2011) for interpolating
-    jump proposals in a reversible jump MCMC.
+  * The methods described in Farr and Mandel (2011)
+    (http://arxiv.org/abs/1104.0984 ) for interpolating jump proposals
+    in a reversible jump MCMC.
 
   * The evidence calculation methods from Weinberg's paper on
     Computing the Bayesian Factor from a Markov chain Monte Carlo
