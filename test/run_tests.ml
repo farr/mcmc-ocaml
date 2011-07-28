@@ -1,13 +1,13 @@
 open OUnit
 
 let tests = "all denest tests" >:::
-  ["earray.ml tests" >: Earray_test.tests;
-   "evidence.ml tests" >: Evidence_test.tests;
-   "interpolate_pdf.ml tests" >: Interpolate_pdf_test.tests;
-   "kd_tree.ml tests" >: Kd_tree_test.tests;
-   "mcmc.ml tests" >: Mcmc_test.tests;
-   "read_write.ml tests" >: Read_write_test.tests;
-   "stats.ml tests" >: Stats_test.tests]
+  [Earray_test.tests;
+   Evidence_test.tests;
+   Interpolate_pdf_test.tests;
+   Kd_tree_test.tests;
+   Mcmc_test.tests;
+   Read_write_test.tests;
+   Stats_test.tests]
 
 let _ = 
   let inp = open_in "/dev/random" in 

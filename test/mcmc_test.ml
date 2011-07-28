@@ -207,6 +207,22 @@ let test_combine_jump_proposal () =
     assert_equal_float ~epsabs:0.05 0.0 mu;
     assert_equal_float ~epsrel:1e-2 1.0 sigma
 
+(* In the event that we use 100% hopping, the distribution of the
+   proposed vectors is given by a gaussian with width sqrt(2)*sigma
+   when the samples are gaussian with any mean and width sigma. *)
+let test_differential_evolution_proposal () = 
+  let nsamples = 1000000 in 
+  let samples = 
+    Array.init nsamples 
+      (fun _ -> {Mcmc.value = [|Stats.draw_gaussian 10.0 1.0|]; like_prior={Mcmc.log_likelihood = 0.0; log_prior = 0.0}}) in 
+  let proposal = Mcmc.differential_evolution_proposal ~mode_hopping_frac:1.0 samples in 
+  let psamples = Array.init nsamples (fun _ -> (proposal [|0.0|]).(0)) in 
+  let mu = Stats.mean psamples and 
+      sigma = Stats.std psamples in 
+  let allowed_error = 5e-3 in (* 5 sigma *)
+    assert_equal_float ~epsabs:allowed_error 0.0 mu;
+    assert_equal_float ~epsabs:allowed_error (sqrt 2.0) sigma
+
 let tests = "mcmc.ml tests" >:::
   ["gaussian posterior, uniform jump proposal" >:: test_gaussian_post_uniform_proposal;
    "gaussian posterior, left-biased jump proposal" >:: test_gaussian_post_left_biased_proposal;
@@ -214,4 +230,5 @@ let tests = "mcmc.ml tests" >:::
    "remove_repeat" >:: test_remove_repeat;
    "rjmcmc on gaussian posteriors in 1-D" >:: test_rjmcmc_gaussians;
    "rjmcmc on top-hat in 2-D, using Interpolated" >:: test_rjmcmc_top_hats_interp;
-   "combine_jump_proposal" >:: test_combine_jump_proposal]
+   "combine_jump_proposal" >:: test_combine_jump_proposal;
+   "differential evolution hopping test" >:: test_differential_evolution_proposal]

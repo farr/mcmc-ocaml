@@ -194,3 +194,24 @@ let uniform_wrapping xmin xmax dx x =
     else
       new_x in 
     loop (x +. delta_x)
+
+let differential_evolution_proposal ?(mode_hopping_frac = 0.0) samples = 
+  let pick_samples () = 
+    let n = Array.length samples in 
+    let i = Random.int n in 
+    let j = let rec loop () = let jtry = Random.int n in if jtry = i then loop () else jtry in loop () in 
+      (samples.(i).value, samples.(j).value) in 
+    fun current -> 
+      let z = current in 
+      let (x, y) = pick_samples () in 
+      let ndim = Array.length z in 
+      let d = 
+        if mode_hopping_frac <> 0.0 && Random.float 1.0 < mode_hopping_frac then 
+          1.0 
+        else 
+          Stats.draw_uniform 0.0 2.0 in          
+      let z' = Array.make ndim 0.0 in 
+        for i = 0 to ndim - 1 do 
+          z'.(i) <- z.(i) +. d*.(y.(i) -. x.(i))
+        done;
+        z'
