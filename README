@@ -1,6 +1,6 @@
 SUMMARY
 
-  This library implements an general MCMC sampler and associated
+  This library implements a general MCMC sampler and associated
   libraries, including
 
   * The methods described in Farr and Mandel (2011)
@@ -12,6 +12,10 @@ SUMMARY
     Simulation of the Posterior Distribution
     (http://arxiv.org/abs/0911.1777 ).
 
+  Also in the library is a simple nested-sampling implementation (see
+  Skilling, J. Nested Sampling.  AIP Conference Proceedings, vol. 735,
+  pp. 395--405, 2004.). 
+
 BUILDING 
  
  * To build the library, use ocamlbuild:
@@ -21,6 +25,10 @@ BUILDING
  * To build the code documentation:
 
    ocamlbuild mcmc.docdir/index.html
+
+ * To build all of the above at once, use 
+
+   ocamlbuild all.otarget
 
  * To build the test suite, you will require oUnit
    (http://ounit.forge.ocamlcore.org/ ).  Edit the myocamlbuild.ml
