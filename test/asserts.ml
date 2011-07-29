@@ -1,7 +1,7 @@
 open OUnit
 
-let assert_equal_float ?(epsabs = 1e-8) ?(epsrel = 1e-8) = 
-  assert_equal ~cmp:(cmp_float ~epsabs:epsabs ~epsrel:epsrel) ~printer:string_of_float
+let assert_equal_float ?(epsabs = 1e-8) ?(epsrel = 1e-8) ?(msg = "") = 
+  assert_equal ~msg:msg ~cmp:(cmp_float ~epsabs:epsabs ~epsrel:epsrel) ~printer:string_of_float
 
 let assert_equal_float_array ?(epsabs = 1e-8) ?(epsrel = 1e-8) ?(msg = "assert_equal_float_array") x y =
   let n = Array.length x in 

@@ -44,3 +44,11 @@ val nested_evidence :
   (float array -> float) -> 
   (float array -> float) -> 
   float * float * (float array Mcmc.mcmc_sample list)
+
+(** [total_error_estimate evidence delta_evidence nlive] returns the
+    quadrature-sum of the systematic and statistical error for the
+    evidence calculated by nested sampling.  [evidence] and
+    [delta_evidence] are returned by the nested sampling algorith,
+    while the statistical error is estimated as a relative error of
+    order 1/sqrt([nlive]).  *)
+val total_error_estimate : float -> float -> int -> float

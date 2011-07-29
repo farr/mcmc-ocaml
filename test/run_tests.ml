@@ -6,6 +6,7 @@ let tests = "all denest tests" >:::
    Interpolate_pdf_test.tests;
    Kd_tree_test.tests;
    Mcmc_test.tests;
+   Nested_test.tests;
    Read_write_test.tests;
    Stats_test.tests]
 

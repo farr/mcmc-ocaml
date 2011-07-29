@@ -61,6 +61,11 @@ val draw_gaussian : float -> float -> float
     mean [mu] and standard deviation [sigma] at [x]. *)
 val log_gaussian : float -> float -> float -> float
 
+(** [log_multi_gaussian mu sigma x] returns the log of a
+    multi-dimensional Gaussian PDF with mean [mu] and standard deviation
+    [sigma]. *)
+val log_multi_gaussian : float array -> float array -> float array -> float
+
 (** [log_lognormal mu sigma x] returns the log of the log-normal PDF.
     Note that [mu] and [sigma] are the corresponding parameters in the
     log-normal distribution, and are not the mean and standard

@@ -97,8 +97,15 @@ let log_cauchy x0 gamma x =
 
 let log_gaussian mu sigma x = 
   let dx = (x -. mu)/.sigma in 
-    (-0.5)*.(log (2.0 *. pi)) -. (log sigma) 
+    -0.91893853320467274178 -. (log sigma) (* -1/2 log(2 Pi) *)
       -. 0.5*.dx*.dx
+
+let log_multi_gaussian mu sigma x = 
+  let result = ref 0.0 in 
+    for i = 0 to Array.length mu - 1 do 
+      result := !result +. log_gaussian mu.(i) sigma.(i) x.(i)
+    done;
+    !result +. 0.0
 
 (* Method from Press, Teukolsky, Vetterling and Flannery.  Numerical
    Recipes.  Cambridge University Press, 2007 (third edition).

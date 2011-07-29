@@ -112,4 +112,8 @@ let nested_evidence ?(epsrel = 0.01) ?(nmcmc = 1000) ?(nlive = 1000) ?(mode_hopp
               else 
                 nested_loop new_volume new_integral new_retired livepts in 
       nested_loop 1.0 0.0 [] livepts
+
+let total_error_estimate ev dev nlive = 
+  let rel_error = 1.0 /. (sqrt (float_of_int nlive)) in 
+    sqrt (dev*.dev +. rel_error*.rel_error*.ev*.ev)
       
