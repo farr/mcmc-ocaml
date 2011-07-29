@@ -4,6 +4,7 @@ Interpolate_pdf
 Kd_tree
 Lex_floats
 Mcmc
+Nested
 Parse_floats
 Read_write
 Stats
