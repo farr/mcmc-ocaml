@@ -17,12 +17,13 @@
 (** Nested sampling. *)
 
 (** [nested_evidence ?epsrel ?nmcmc ?nlive ?mode_hopping_frac
-    draw_prior log_likelihood log_prior] returns a tuple [(evidence,
-    delta_evidence, sampled_points)], where [evidence] is an estimate
-    of the evidence integral for the model with [log_likelihood] and
-    [log_prior], [delta_evidence] is an estimate of the error in the
+    draw_prior log_likelihood log_prior] returns a tuple
+    [(log_evidence, log_delta_evidence, sampled_points)], where
+    [log_evidence] is an estimate of the log of the evidence integral
+    for the model with [log_likelihood] and [log_prior],
+    [log_delta_evidence] is the log of an estimate of the error in the
     evidence estimate, and [sampled_points] is a list of the points
-    sampled in the nested sampling algorithm.  
+    sampled in the nested sampling algorithm.
 
     The algorithm continues sampling from parameter space until it
     estimates that the (fractional) contribution to the evidence
@@ -45,10 +46,10 @@ val nested_evidence :
   (float array -> float) -> 
   float * float * (float array Mcmc.mcmc_sample array) * (float array)
 
-(** [total_error_estimate evidence delta_evidence nlive] returns the
-    quadrature-sum of the systematic and statistical error for the
-    evidence calculated by nested sampling.  [evidence] and
-    [delta_evidence] are returned by the nested sampling algorithm,
-    while the statistical error is estimated as a relative error of
-    order 1/sqrt([nlive]).  *)
-val total_error_estimate : float -> float -> int -> float
+(** [total_error_estimate log_evidence log_delta_evidence nlive]
+    returns the quadrature-sum of the systematic and statistical error
+    for the evidence calculated by nested sampling.  [log_evidence]
+    and [log_delta_evidence] are returned by the nested sampling
+    algorithm, while the statistical error is estimated as a relative
+    error of order 1/sqrt([nlive]).  *)
+val log_total_error_estimate : float -> float -> int -> float
