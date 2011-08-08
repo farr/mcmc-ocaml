@@ -104,3 +104,7 @@ val find_nthf : ?copy : bool -> ('a -> 'a -> int) -> int -> 'a array -> 'a
     methods to compute the autocorrelation.  The total computation
     time is O([nslides][n]), where [n] is the length of [x].*)
 val slow_autocorrelation : int -> float array -> float array
+
+(** [log_sum_logs logx logy] returns the log of the sum of [x] and [y]
+    given [logx = log x] and [logy = log y] accurately. *)
+val log_sum_logs : float -> float -> float

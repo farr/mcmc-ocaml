@@ -236,3 +236,10 @@ let slow_autocorrelation nslides x =
       result.(i) <- result.(i) /. (float_of_int (n-i))
     done;
     result
+
+let rec log_sum_logs a b = 
+  if b > a then 
+    log_sum_logs b a
+  else
+    let r = exp (b -. a) in 
+      a +. (log1p r)

@@ -106,6 +106,15 @@ let test_slow_autocorrelation () =
       [| 1.000000000000000; -0.117926565125732; -0.043808623348460|]
       ac
 
+let test_log_sum_logs () = 
+  for i = 0 to 100 do 
+    let x = Random.float 1.0 and
+        y = Random.float 1.0 in 
+    let logx = log x and 
+        logy = log y in 
+      assert_equal_float (log (x+.y)) (log_sum_logs logx logy)
+  done
+
 let tests = "stats.ml tests" >:::
   ["mean" >:: test_mean;
    "randomized mean" >:: test_mean_random;
@@ -118,4 +127,5 @@ let tests = "stats.ml tests" >:::
    "multi_std" >:: test_multi_std;
    "find_nth" >:: test_find_nth;
    "find_nthf" >:: test_find_nthf;
-   "log_lognormal" >:: test_log_lognormal]
+   "log_lognormal" >:: test_log_lognormal;
+   "log_sum_logs" >:: test_log_sum_logs]
