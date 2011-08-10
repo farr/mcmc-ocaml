@@ -18,12 +18,17 @@
 
 (** [nested_evidence ?epsrel ?nmcmc ?nlive ?mode_hopping_frac
     draw_prior log_likelihood log_prior] returns a tuple
-    [(log_evidence, log_delta_evidence, sampled_points)], where
-    [log_evidence] is an estimate of the log of the evidence integral
-    for the model with [log_likelihood] and [log_prior],
-    [log_delta_evidence] is the log of an estimate of the error in the
-    evidence estimate, and [sampled_points] is a list of the points
-    sampled in the nested sampling algorithm.
+    [(log_evidence, log_delta_evidence, sampled_points,
+    log_point_weights)], where [log_evidence] is an estimate of the
+    log of the evidence integral for the model with [log_likelihood]
+    and [log_prior], [log_delta_evidence] is the log of an estimate of
+    the error in the evidence estimate, [sampled_points] is a list of
+    the points sampled in the nested sampling algorithm, and
+    [log_weights] is an array of the log of the weight of the
+    corresponding sample points in the evidence integral.  This last
+    quantity is useful for computing statistics from the sample
+    points, as each point should contribute proportional to its
+    weight.
 
     The algorithm continues sampling from parameter space until it
     estimates that the (fractional) contribution to the evidence

@@ -1,4 +1,5 @@
 open OUnit
+open Asserts
 
 let mcmc_samples_close a b = 
   let n = Array.length a in 
@@ -42,6 +43,33 @@ let test_read_write_inverses () =
       Sys.remove fname;
       mcmc_samples_close samples rsamples
     
-
+let test_nested_read_write () = 
+  let (log_ev, log_dev, arr_samples, log_wts) as result = 
+    Nested.nested_evidence 
+      (fun () -> [|Random.float 1.0|])
+      (fun x -> Stats.log_gaussian 0.5 0.1 x.(0))
+      (fun x -> 0.0) in 
+  let samples = Array.map (fun x -> {x with Mcmc.value = x.Mcmc.value.(0)}) arr_samples in 
+  let (fname, ofile) = Filename.open_temp_file "nested_test" ".dat" in 
+    (try
+       Read_write.write_nested ofile result
+     with 
+       | x -> close_out ofile; Sys.remove fname; raise x);
+    close_out ofile;
+    let ifile = open_in fname in 
+    let (rlog_ev, rlog_dev, rarr_samples, rlog_wts) = 
+      try 
+        Read_write.read_nested ifile
+      with 
+        | x -> close_in ifile; Sys.remove fname; raise x in 
+    let rsamples = Array.map (fun x -> {x with Mcmc.value = x.Mcmc.value.(0)}) rarr_samples in 
+      close_in ifile;
+      Sys.remove fname;
+      assert_equal_float ~epsrel:0.01 ~msg:"evidence disagrees" log_ev rlog_ev;
+      assert_equal_float ~epsrel:0.01 ~msg:"delta evidence disagrees" log_dev rlog_dev;
+      mcmc_samples_close samples rsamples;
+      assert_equal_float_array ~epsrel:0.01 ~msg:"weights disagree" log_wts rlog_wts
+    
 let tests = "read_write.ml tests" >:::
-  ["read and write are inverses" >:: test_read_write_inverses]
+  ["read and write are inverses" >:: test_read_write_inverses;
+   "read and write nested samples" >:: test_nested_read_write]

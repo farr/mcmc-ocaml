@@ -48,3 +48,18 @@ val read_sample : (float array -> 'a) -> in_channel -> 'a Mcmc.mcmc_sample
     sample, and the entire sample is returned as the result of the
     [read] call. *)
 val read : (float array -> 'a) -> in_channel -> 'a Mcmc.mcmc_sample array
+
+(** [write_nested chan (log_ev, log_dev, samples, log_wts)] writes the
+    given nested sampling output to [chan].  The first line contains
+    [log_ev] and [log_dev], and the remaining lines contain the
+    samples and log(weights), one per line.  The log(weight) value
+    follows the log(likelihood) and log(prior) values for each sample,
+    which in turn follow the coordinates in parameter space for the
+    sample.  In other words, the sample is written just as in [write],
+    followed by the log(weight). *)
+val write_nested : out_channel -> (float * float * float array Mcmc.mcmc_sample array * float array) -> unit
+
+(** Given an in_channel containing the output of [write_nested], read
+    from it, returing [(log_ev, log_delta_ev, samples,
+    log_weights)].*)
+val read_nested : in_channel -> (float * float * float array Mcmc.mcmc_sample array * float array)

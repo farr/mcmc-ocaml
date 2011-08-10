@@ -14,10 +14,12 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+open Mcmc
+
 let write_sample to_coords chan 
-    {Mcmc.value = v;
-     like_prior = {Mcmc.log_likelihood = ll;
-                   Mcmc.log_prior = lp}} = 
+    {value = v;
+     like_prior = {log_likelihood = ll;
+                   log_prior = lp}} = 
   Array.iter (fun x -> Printf.fprintf chan "%g " x) (to_coords v);
   Printf.fprintf chan "%g %g\n" ll lp 
 
@@ -37,9 +39,9 @@ let read_one_line from_coords string =
        | End_of_file -> ());
     let pts = Earray.to_array ea in 
     let n = Array.length pts in 
-      {Mcmc.value = from_coords (Array.sub pts 0 (n-2));
-       like_prior = {Mcmc.log_likelihood = pts.(n-2);
-                     Mcmc.log_prior = pts.(n-1)}}
+      {value = from_coords (Array.sub pts 0 (n-2));
+       like_prior = {log_likelihood = pts.(n-2);
+                     log_prior = pts.(n-1)}}
 
 let read_sample from_coords chan = 
   let line = input_line chan in 
@@ -54,3 +56,46 @@ let read from_coords chan =
       Earray.to_array ea
     with 
       | End_of_file -> Earray.to_array ea
+
+let write_nested chan (log_ev, log_dev, all_pts, wts) = 
+  Printf.fprintf chan "%g %g\n" log_ev log_dev;
+  Array.iteri (fun i sample -> 
+    let wt = wts.(i) in 
+      Array.iter (fun x -> Printf.fprintf chan "%g " x) sample.value;
+      Printf.fprintf chan "%g %g " sample.like_prior.log_likelihood sample.like_prior.log_prior;
+      Printf.fprintf chan "%g\n" wt)
+    all_pts
+
+let read_nested_log_ev_dev string = 
+  let buf = Scanf.Scanning.from_string string in 
+    Scanf.bscanf buf " %g %g " (fun x y -> (x,y))
+
+let read_nested_sample string = 
+  let buf = Scanf.Scanning.from_string string in 
+  let ea = Earray.of_array [||] in 
+    (try 
+       while true do 
+         Earray.append ea (Scanf.bscanf buf " %g " (fun x -> x))
+       done;
+       ()
+     with 
+       | End_of_file -> ());
+    let pt = Earray.to_array ea in 
+    let n = Array.length pt in 
+      ({value = Array.sub pt 0 (n-3);
+        like_prior = {log_likelihood = pt.(n-3);
+                      log_prior = pt.(n-2)}},
+       pt.(n-1))
+
+let read_nested chan = 
+  let (log_ev, log_dev) = read_nested_log_ev_dev (input_line chan) in 
+  let ea = Earray.of_array [||] in 
+    (try 
+       while true do
+         Earray.append ea (read_nested_sample (input_line chan))
+       done;
+       ()
+     with 
+       | End_of_file -> ());
+    let pts_and_wts = Earray.to_array ea in 
+      (log_ev, log_dev, Array.map fst pts_and_wts, Array.map snd pts_and_wts)
