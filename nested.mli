@@ -39,9 +39,12 @@
     live points in total.  [mode_hopping_frac] controls the fraction
     of DE jumps that are proposed in mode-hopping mode (see
     {!Mcmc.differential_evolution_proposal}).  [draw_prior] is used to
-    produce the initial distribution of live points.
+    produce the initial distribution of live points.  The [observer]
+    argument is called each time a live point is retired with the
+    retired point as argument.
 *)
 val nested_evidence : 
+  ?observer : (float array Mcmc.mcmc_sample -> unit) ->
   ?epsrel : float -> 
   ?nmcmc : int -> 
   ?nlive : int -> 

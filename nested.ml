@@ -114,7 +114,10 @@ let evidence_error_and_weights nlive all_pts =
         done;
         (log_ev, log_dev, all_pts, wts)
 
-let nested_evidence ?(epsrel = 0.01) ?(nmcmc = 1000) ?(nlive = 1000) ?(mode_hopping_frac = 0.1) draw_prior log_likelihood log_prior = 
+let nested_evidence ?observer ?(epsrel = 0.01) ?(nmcmc = 1000) ?(nlive = 1000) ?(mode_hopping_frac = 0.1) draw_prior log_likelihood log_prior = 
+  let observer = match observer with 
+    | Some(o) -> o
+    | None -> fun _ -> () in
   let livepts = 
     Array.map 
       (fun pt -> {value = pt; like_prior = {log_likelihood = log_likelihood pt; log_prior = log_prior pt}})
@@ -125,17 +128,18 @@ let nested_evidence ?(epsrel = 0.01) ?(nmcmc = 1000) ?(nlive = 1000) ?(mode_hopp
     let rec nested_loop log_vol_remaining log_integral_estimate retired_pts livepts = 
       let new_pt = draw_new_live_point nmcmc mode_hopping_frac livepts log_likelihood log_prior in 
       let retired_pt = replace_live_point livepts new_pt in 
-      let new_retired = retired_pt :: retired_pts in 
-      let log_retired_l = retired_pt.like_prior.log_likelihood in 
-      let log_new_vol = log_vol_remaining +. log_volume_reduction_factor in 
-      let log_dv = log_vol_remaining +. vol_fraction in 
-      let log_new_estimate = log_sum_logs log_integral_estimate (log_retired_l +. log_dv) in 
-        if remaining_integral_negligable log_new_estimate log_new_vol livepts epsrel then 
-          evidence_error_and_weights nlive (Array.of_list (List.rev_append new_retired (Array.to_list livepts)))
-        else
-          nested_loop log_new_vol log_new_estimate new_retired livepts in 
+        ignore(observer retired_pt);
+        let new_retired = retired_pt :: retired_pts in 
+        let log_retired_l = retired_pt.like_prior.log_likelihood in 
+        let log_new_vol = log_vol_remaining +. log_volume_reduction_factor in 
+        let log_dv = log_vol_remaining +. vol_fraction in 
+        let log_new_estimate = log_sum_logs log_integral_estimate (log_retired_l +. log_dv) in 
+          if remaining_integral_negligable log_new_estimate log_new_vol livepts epsrel then 
+            evidence_error_and_weights nlive (Array.of_list (List.rev_append new_retired (Array.to_list livepts)))
+          else
+            nested_loop log_new_vol log_new_estimate new_retired livepts in 
       nested_loop 0.0 neg_infinity [] livepts
-
+        
 let log_total_error_estimate log_ev log_dev nlive = 
   let log_rel_error2 = ~-. (log (float_of_int nlive)) in 
     0.5 *. (log_sum_logs (2.0*.log_dev) (log_rel_error2 +. 2.0*.log_ev))
