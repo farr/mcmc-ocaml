@@ -84,7 +84,28 @@ let test_single_gaussian_weights () =
     assert_equal_float ~msg:"Bad weight sum" 1.0 wt_sum;
     assert_equal_float ~msg:"Bad mean" ~epsabs:0.1 0.5 mean
 
+let test_posterior_samples () = 
+  let log_prior x = 
+    if x.(0) < 1.0 && x.(0) > 0.0 && x.(1) < 1.0 && x.(1) > 0.0 then 
+      0.0
+    else
+      neg_infinity in 
+  let log_likelihood x = 
+    let g1 = log_gaussian 0.5 0.1 x.(0) and 
+        g2 = log_gaussian 0.5 0.1 x.(1) in 
+      g1 +. g2 in 
+  let draw_prior () = 
+    [|draw_uniform 0.0 1.0; draw_uniform 0.0 1.0|] in 
+  let nlive = 1000 in 
+  let (log_ev, log_dev, pts, log_wts) as result = nested_evidence ~nlive:nlive draw_prior log_likelihood log_prior in
+  let n = Array.length pts in 
+    assert_bool "too few nested sampling points" (n > 100);
+    let samples = posterior_samples 100 result in 
+    let mu = meanf (fun x -> x.Mcmc.value.(0)) samples in 
+      assert_equal_float ~epsabs:0.05 ~msg:"bad mean" 0.5 mu
+
 let tests = "nested.ml tests" >:::
   ["single Gaussian test" >:: test_single_gaussian;
    "four Gaussian test" >:: test_four_gaussians;
-   "single Gaussian weights" >:: test_single_gaussian_weights]
+   "single Gaussian weights" >:: test_single_gaussian_weights;
+   "posterior samples" >:: test_posterior_samples]

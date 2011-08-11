@@ -17,6 +17,8 @@
 open Mcmc
 open Stats
 
+type nested_output = float * float * float array Mcmc.mcmc_sample array * float array
+
 (* Replaces the lowest-likelihood live point (the lpoints array is
    assumed to be sorted in order of increasing likelihood) with the
    given point.  Returns the now-dead point that has been replaced.
@@ -143,3 +145,31 @@ let nested_evidence ?observer ?(epsrel = 0.01) ?(nmcmc = 1000) ?(nlive = 1000) ?
 let log_total_error_estimate log_ev log_dev nlive = 
   let log_rel_error2 = ~-. (log (float_of_int nlive)) in 
     0.5 *. (log_sum_logs (2.0*.log_dev) (log_rel_error2 +. 2.0*.log_ev))
+
+let weight_binary_search_index x running_sums = 
+  if x <= running_sums.(0) then 
+    0
+  else
+    let rec bs_loop ilow ihigh = 
+      if ihigh - ilow <= 1 then 
+        ihigh
+      else
+        let imid = (ilow + ihigh) / 2 in 
+          if x <= running_sums.(imid) then 
+            bs_loop ilow imid
+          else
+            bs_loop imid ihigh in 
+      bs_loop 0 (Array.length running_sums - 1)
+
+let posterior_samples n (_, _, all_pts, log_wts) = 
+  let npts = Array.length all_pts in 
+    assert(Array.length log_wts = npts);
+    let summed_weights = Array.make npts (exp log_wts.(0)) in 
+      for i = 1 to npts - 1 do 
+        summed_weights.(i) <- (exp log_wts.(i)) +. summed_weights.(i-1)
+      done;
+      Array.init n 
+        (fun _ -> 
+          let x = Random.float 1.0 in 
+          let i = weight_binary_search_index x summed_weights in 
+            all_pts.(i))

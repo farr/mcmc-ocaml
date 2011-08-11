@@ -16,6 +16,10 @@
 
 (** Nested sampling. *)
 
+(** The output type for {!Nested.nested_evidence}.  The values are
+    [(log_evidence, log_delta_evidence, samples, log_weights)]. *)
+type nested_output = float * float * float array Mcmc.mcmc_sample array * float array
+
 (** [nested_evidence ?epsrel ?nmcmc ?nlive ?mode_hopping_frac
     draw_prior log_likelihood log_prior] returns a tuple
     [(log_evidence, log_delta_evidence, sampled_points,
@@ -52,7 +56,7 @@ val nested_evidence :
   (unit -> float array) -> 
   (float array -> float) -> 
   (float array -> float) -> 
-  float * float * (float array Mcmc.mcmc_sample array) * (float array)
+  nested_output
 
 (** [total_error_estimate log_evidence log_delta_evidence nlive]
     returns the quadrature-sum of the systematic and statistical error
@@ -61,3 +65,11 @@ val nested_evidence :
     algorithm, while the statistical error is estimated as a relative
     error of order 1/sqrt([nlive]).  *)
 val log_total_error_estimate : float -> float -> int -> float
+
+(** [posterior_samples n nested_output] produces an array of [n]
+    posterior samples from the given [nested_output].  The posterior
+    samples are drawn from the samples in the [nested_output], so be
+    wary about asking for many more posterior samples than there are
+    samples in [nested_output]; if you do, there will be many
+    repeats! *)
+val posterior_samples : int -> nested_output -> float array Mcmc.mcmc_sample array
