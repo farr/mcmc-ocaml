@@ -67,8 +67,11 @@ let draw_new_live_point nmcmc mode_hop livepts log_likelihood log_prior =
     done;
     let new_live = {value = !current_point.value; like_prior = {log_likelihood = log_likelihood !current_point.value;
                                                                 log_prior = log_prior !current_point.value}} in 
-      assert(new_live.like_prior.log_likelihood >= livepts.(0).like_prior.log_likelihood);
-      new_live
+      if new_live.like_prior.log_likelihood < livepts.(0).like_prior.log_likelihood then
+        raise (Failure (Printf.sprintf "Error in draw_new_live_point: new log(L) of %g larger than old log(L) of %g\n%!"
+          new_live.like_prior.log_likelihood livepts.(0).like_prior.log_likelihood))
+      else        
+        new_live
 
 (* Each point is associated with a particular remaining volume that
    runs from 1 down to 0.  All but the final nlive points are
