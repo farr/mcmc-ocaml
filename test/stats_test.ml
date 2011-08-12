@@ -115,6 +115,10 @@ let test_log_sum_logs () =
       assert_equal_float (log (x+.y)) (log_sum_logs logx logy)
   done
 
+let test_log_sum_logs_zero () = 
+  let result = log_sum_logs neg_infinity neg_infinity in 
+    assert_bool (Printf.sprintf "expected -inf, but got %g" result) (result = neg_infinity)
+
 let tests = "stats.ml tests" >:::
   ["mean" >:: test_mean;
    "randomized mean" >:: test_mean_random;
@@ -128,4 +132,5 @@ let tests = "stats.ml tests" >:::
    "find_nth" >:: test_find_nth;
    "find_nthf" >:: test_find_nthf;
    "log_lognormal" >:: test_log_lognormal;
-   "log_sum_logs" >:: test_log_sum_logs]
+   "log_sum_logs" >:: test_log_sum_logs;
+   "log_sum_logs on 0.0 0.0" >:: test_log_sum_logs_zero]

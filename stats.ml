@@ -238,7 +238,10 @@ let slow_autocorrelation nslides x =
     result
 
 let rec log_sum_logs a b = 
-  if b > a then 
+  if a = neg_infinity && b = neg_infinity then 
+    (* Has to be handled specially. *)
+    neg_infinity
+  else if b > a then 
     log_sum_logs b a
   else
     let r = exp (b -. a) in 
