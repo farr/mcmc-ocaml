@@ -9,3 +9,10 @@ let assert_equal_float_array ?(epsabs = 1e-8) ?(epsrel = 1e-8) ?(msg = "assert_e
     for i = 0 to n - 1 do 
       assert_equal_float ~epsabs:epsabs ~epsrel:epsrel ~msg:msg x.(i) y.(i)
     done
+
+let assert_equal_float_matrix ?(epsabs = 1e-8) ?(epsrel = 1e-8) ?(msg = "assert_equal_float_matrix") x y =
+  let n = Array.length x in 
+    assert_bool (Printf.sprintf "%s: sizes differ" msg) (Array.length y = n);
+    for i = 0 to n - 1 do 
+      assert_equal_float_array ~epsabs:epsabs ~epsrel:epsrel ~msg:(Printf.sprintf "%s: matrix row differs" msg) x.(i) y.(i)
+    done

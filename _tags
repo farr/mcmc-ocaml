@@ -1,5 +1,7 @@
 <test> or <bin> or <bin/group-meeting> : include
 
+<**/*.{ml,mli,native,byte}> : use_bigarray, use_lacaml
+
 <bin/**/*.{ml,mli,native,byte}> : use_mcmc
 
 <test/*.{ml,mli,native,byte}> : use_unix, use_oUnit, use_mcmc
