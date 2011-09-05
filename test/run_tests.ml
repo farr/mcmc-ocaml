@@ -1,15 +1,15 @@
 open OUnit
 
 let tests = "all denest tests" >:::
-  [(* Earray_test.tests; *)
-   Ellipse_test.tests (* ; *)
-   (* Evidence_test.tests; *)
-   (* Interpolate_pdf_test.tests; *)
-   (* Kd_tree_test.tests; *)
-   (* Mcmc_test.tests; *)
-   (* Nested_test.tests; *)
-   (* Read_write_test.tests; *)
-   (* Stats_test.tests *)]
+  [Earray_test.tests;
+   Ellipse_test.tests ;
+   Evidence_test.tests;
+   Interpolate_pdf_test.tests;
+   Kd_tree_test.tests;
+   Mcmc_test.tests;
+   Nested_test.tests;
+   Read_write_test.tests;
+   Stats_test.tests]
 
 let _ = 
   let inp = open_in "/dev/random" in 

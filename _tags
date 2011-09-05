@@ -2,6 +2,6 @@
 
 <**/*.{ml,mli,native,byte}> : use_bigarray, use_lacaml
 
-<bin/**/*.{ml,mli,native,byte}> : use_mcmc
+<bin/**/*.{ml,mli,native,byte}> : use_graphics, use_mcmc
 
 <test/*.{ml,mli,native,byte}> : use_unix, use_oUnit, use_mcmc
