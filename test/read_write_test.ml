@@ -46,20 +46,22 @@ let test_read_write_inverses () =
 let test_nested_read_write () = 
   let (log_ev, log_dev, arr_samples, log_wts) as result = 
     Nested.nested_evidence 
+      (fun x -> x)
+      (fun x -> x)
       (fun () -> [|Random.float 1.0|])
       (fun x -> Stats.log_gaussian 0.5 0.1 x.(0))
       (fun x -> 0.0) in 
   let samples = Array.map (fun x -> {x with Mcmc.value = x.Mcmc.value.(0)}) arr_samples in 
   let (fname, ofile) = Filename.open_temp_file "nested_test" ".dat" in 
     (try
-       Read_write.write_nested ofile result
+       Read_write.write_nested (fun x -> x) ofile result
      with 
        | x -> close_out ofile; Sys.remove fname; raise x);
     close_out ofile;
     let ifile = open_in fname in 
     let (rlog_ev, rlog_dev, rarr_samples, rlog_wts) = 
       try 
-        Read_write.read_nested ifile
+        Read_write.read_nested (fun x -> x) ifile
       with 
         | x -> close_in ifile; Sys.remove fname; raise x in 
     let rsamples = Array.map (fun x -> {x with Mcmc.value = x.Mcmc.value.(0)}) rarr_samples in 

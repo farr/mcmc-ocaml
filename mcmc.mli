@@ -187,13 +187,14 @@ val combine_jump_proposals :
     ([dx] must be smaller than the range [xmax -. xmin].) *)
 val uniform_wrapping : float -> float -> float -> float -> float
 
-(** [differential_evolution_proposal ?mode_hopping_frac samples]
-    returns a valid jump proposal that will use the given [samples] to
-    construct a differential-evolution proposal.  The optional
-    [from_coord] and [to_coord] arguments are used to convert the mcmc
-    samples into float arrays.  The [mode_hopping_frac] argument
-    controls how often the proposal operates in "mode-hopping" mode
-    compared to how often it operates in normal mode (see below).
+(** [differential_evolution_proposal ?mode_hopping_frac to_float
+    from_float samples] returns a valid jump proposal that will use
+    the given [samples] to construct a differential-evolution
+    proposal.  The optional [to_float] and [from_float] arguments are
+    used to convert the mcmc samples into and out of float arrays.
+    The [mode_hopping_frac] argument controls how often the proposal
+    operates in "mode-hopping" mode compared to how often it operates
+    in normal mode (see below).
 
     A differential evolution proposal chooses two of the points from
     [samples], computes the vector in coordinate space from one to the
@@ -212,6 +213,6 @@ val uniform_wrapping : float -> float -> float -> float -> float
     combined jump proposal unless all parts are symmetric.
 *)
 val differential_evolution_proposal : 
-  ?mode_hopping_frac : float -> 
-  float array mcmc_sample array -> 
-  float array -> float array
+  ?mode_hopping_frac : float -> ('a -> float array) -> (float array -> 'a) ->
+  'a mcmc_sample array -> 
+  'a -> 'a

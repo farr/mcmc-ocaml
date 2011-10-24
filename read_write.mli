@@ -57,9 +57,9 @@ val read : (float array -> 'a) -> in_channel -> 'a Mcmc.mcmc_sample array
     which in turn follow the coordinates in parameter space for the
     sample.  In other words, the sample is written just as in [write],
     followed by the log(weight). *)
-val write_nested : out_channel -> Nested.nested_output -> unit
+val write_nested : ('a -> float array) -> out_channel -> 'a Nested.nested_output -> unit
 
 (** Given an in_channel containing the output of [write_nested], read
     from it, returing [(log_ev, log_delta_ev, samples,
     log_weights)].*)
-val read_nested : in_channel -> Nested.nested_output
+val read_nested : (float array -> 'a) -> in_channel -> 'a Nested.nested_output

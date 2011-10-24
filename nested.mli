@@ -18,7 +18,7 @@
 
 (** The output type for {!Nested.nested_evidence}.  The values are
     [(log_evidence, log_delta_evidence, samples, log_weights)]. *)
-type nested_output = float * float * float array Mcmc.mcmc_sample array * float array
+type 'a nested_output = float * float * 'a Mcmc.mcmc_sample array * float array
 
 (** [nested_evidence ?epsrel ?nmcmc ?nlive ?mode_hopping_frac
     draw_prior log_likelihood log_prior] returns a tuple
@@ -48,15 +48,17 @@ type nested_output = float * float * float array Mcmc.mcmc_sample array * float 
     retired point as argument.
 *)
 val nested_evidence : 
-  ?observer : (float array Mcmc.mcmc_sample -> unit) ->
+  ?observer : ('a Mcmc.mcmc_sample -> unit) ->
   ?epsrel : float -> 
   ?nmcmc : int -> 
   ?nlive : int -> 
   ?mode_hopping_frac : float -> 
-  (unit -> float array) -> 
-  (float array -> float) -> 
-  (float array -> float) -> 
-  nested_output
+  ('a -> float array) -> 
+  (float array -> 'a) ->
+  (unit -> 'a) -> 
+  ('a -> float) -> 
+  ('a -> float) -> 
+  'a nested_output
 
 (** [total_error_estimate log_evidence log_delta_evidence nlive]
     returns the quadrature-sum of the systematic and statistical error
@@ -72,4 +74,4 @@ val log_total_error_estimate : float -> float -> int -> float
     wary about asking for many more posterior samples than there are
     samples in [nested_output]; if you do, there will be many
     repeats! *)
-val posterior_samples : int -> nested_output -> float array Mcmc.mcmc_sample array
+val posterior_samples : int -> 'a nested_output -> 'a Mcmc.mcmc_sample array

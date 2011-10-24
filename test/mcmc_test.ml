@@ -215,7 +215,7 @@ let test_differential_evolution_proposal () =
   let samples = 
     Array.init nsamples 
       (fun _ -> {Mcmc.value = [|Stats.draw_gaussian 10.0 1.0|]; like_prior={Mcmc.log_likelihood = 0.0; log_prior = 0.0}}) in 
-  let proposal = Mcmc.differential_evolution_proposal ~mode_hopping_frac:1.0 samples in 
+  let proposal = Mcmc.differential_evolution_proposal ~mode_hopping_frac:1.0 (fun x -> x) (fun x -> x) samples in 
   let psamples = Array.init nsamples (fun _ -> (proposal [|0.0|]).(0)) in 
   let mu = Stats.mean psamples and 
       sigma = Stats.std psamples in 

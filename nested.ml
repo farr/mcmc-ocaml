@@ -17,7 +17,7 @@
 open Mcmc
 open Stats
 
-type nested_output = float * float * float array Mcmc.mcmc_sample array * float array
+type 'a nested_output = float * float * 'a Mcmc.mcmc_sample array * float array
 
 (* Replaces the lowest-likelihood live point (the lpoints array is
    assumed to be sorted in order of increasing likelihood) with the
@@ -47,10 +47,10 @@ let remaining_integral_negligable log_accumulated_integral log_remaining_volume 
   let log_live_estimate = log_remaining_volume +. (livepts.(n-1).like_prior.log_likelihood) in 
     log_live_estimate -. (log_sum_logs log_accumulated_integral log_live_estimate) <= log epsrel
 
-let draw_new_live_point nmcmc mode_hop livepts log_likelihood log_prior = 
+let draw_new_live_point to_array from_array nmcmc mode_hop livepts log_likelihood log_prior = 
   let nlive = Array.length livepts in 
   let log_l_threshold = livepts.(0).like_prior.log_likelihood in 
-  let jump_proposal = differential_evolution_proposal ~mode_hopping_frac:mode_hop livepts in 
+  let jump_proposal = differential_evolution_proposal ~mode_hopping_frac:mode_hop to_array from_array livepts in 
   let mcmc_logl pt = 
     let ll = log_likelihood pt in 
       if ll >= log_l_threshold then 
@@ -119,7 +119,7 @@ let evidence_error_and_weights nlive all_pts =
         done;
         (log_ev, log_dev, all_pts, wts)
 
-let nested_evidence ?observer ?(epsrel = 0.01) ?(nmcmc = 1000) ?(nlive = 1000) ?(mode_hopping_frac = 0.1) draw_prior log_likelihood log_prior = 
+let nested_evidence ?observer ?(epsrel = 0.01) ?(nmcmc = 1000) ?(nlive = 1000) ?(mode_hopping_frac = 0.1) to_float from_float draw_prior log_likelihood log_prior = 
   let observer = match observer with 
     | Some(o) -> o
     | None -> fun _ -> () in
@@ -131,7 +131,7 @@ let nested_evidence ?observer ?(epsrel = 0.01) ?(nmcmc = 1000) ?(nlive = 1000) ?
   let log_volume_reduction_factor = log1p (~-.vol_fraction) in 
     Array.fast_sort (fun p1 p2 -> Pervasives.compare p1.like_prior.log_likelihood p2.like_prior.log_likelihood) livepts;
     let rec nested_loop log_vol_remaining log_integral_estimate retired_pts livepts = 
-      let new_pt = draw_new_live_point nmcmc mode_hopping_frac livepts log_likelihood log_prior in 
+      let new_pt = draw_new_live_point to_float from_float nmcmc mode_hopping_frac livepts log_likelihood log_prior in 
       let retired_pt = replace_live_point livepts new_pt in 
         ignore(observer retired_pt);
         let new_retired = retired_pt :: retired_pts in 

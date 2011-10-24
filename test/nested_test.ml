@@ -32,7 +32,7 @@ let test_single_gaussian () =
       g1 +. g2 in 
   let draw_prior () = 
     [|draw_uniform 0.0 1.0; draw_uniform 0.0 1.0|] in 
-  let (log_ev, log_dev, _, _) = nested_evidence draw_prior log_likelihood log_prior in 
+  let (log_ev, log_dev, _, _) = nested_evidence (fun x -> x) (fun x -> x) draw_prior log_likelihood log_prior in 
   let ev = exp log_ev in 
   let err = exp (log_total_error_estimate log_ev log_dev 1000) in
     assert_equal_float ~msg:"bad Gaussian evidence" ~epsabs:(2.0*.err) 1.0 ev;
@@ -57,7 +57,7 @@ let test_four_gaussians () =
       log ((exp g1) +. (exp g2) +. (exp g3) +. (exp g4)) in 
   let draw_prior () = 
     [|draw_uniform 0.0 1.0; draw_uniform 0.0 1.0|] in 
-  let (log_ev, log_dev, _, _) = nested_evidence draw_prior log_likelihood log_prior in 
+  let (log_ev, log_dev, _, _) = nested_evidence (fun x -> x) (fun x -> x) draw_prior log_likelihood log_prior in 
   let ev = exp log_ev in 
   let err = exp (log_total_error_estimate log_ev log_dev 1000) in 
     assert_equal_float ~msg:"bad Gaussian evidence" ~epsabs:(2.0*.err) 4.0 ev;
@@ -76,7 +76,7 @@ let test_single_gaussian_weights () =
   let draw_prior () = 
     [|draw_uniform 0.0 1.0; draw_uniform 0.0 1.0|] in 
   let nlive = 1000 in 
-  let (log_ev, log_dev, pts, log_wts) = nested_evidence ~nlive:nlive draw_prior log_likelihood log_prior in 
+  let (log_ev, log_dev, pts, log_wts) = nested_evidence ~nlive:nlive (fun x -> x) (fun x -> x) draw_prior log_likelihood log_prior in 
   let log_mean = Util.UArray.fold_left2 (fun sum pt log_wt -> log_sum_logs sum (log_wt +. log pt.value.(0))) neg_infinity pts log_wts in 
   let log_wt_sum = Array.fold_left log_sum_logs neg_infinity log_wts in 
   let mean = exp log_mean and 
@@ -97,7 +97,7 @@ let test_posterior_samples () =
   let draw_prior () = 
     [|draw_uniform 0.0 1.0; draw_uniform 0.0 1.0|] in 
   let nlive = 1000 in 
-  let (log_ev, log_dev, pts, log_wts) as result = nested_evidence ~nlive:nlive draw_prior log_likelihood log_prior in
+  let (log_ev, log_dev, pts, log_wts) as result = nested_evidence ~nlive:nlive (fun x -> x) (fun x -> x) draw_prior log_likelihood log_prior in
   let n = Array.length pts in 
     assert_bool "too few nested sampling points" (n > 100);
     let samples = posterior_samples 100 result in 
