@@ -209,7 +209,7 @@ let differential_evolution_proposal ?(mode_hopping_frac = 0.0) to_float from_flo
         if mode_hopping_frac <> 0.0 && Random.float 1.0 < mode_hopping_frac then 
           1.0 
         else 
-          Stats.draw_uniform 0.0 2.0 in          
+          2.38 /. (sqrt (2.0*.(float_of_int ndim))) in
       let z' = Array.make ndim 0.0 in 
         for i = 0 to ndim - 1 do 
           z'.(i) <- z.(i) +. d*.(y.(i) -. x.(i))
