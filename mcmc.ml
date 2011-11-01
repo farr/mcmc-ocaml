@@ -209,7 +209,8 @@ let differential_evolution_proposal ?(mode_hopping_frac = 0.0) to_float from_flo
         if mode_hopping_frac <> 0.0 && Random.float 1.0 < mode_hopping_frac then 
           1.0 
         else 
-          2.38 /. (sqrt (2.0*.(float_of_int ndim))) in
+          let sigma = 2.38 /. (sqrt (2.0*.(float_of_int ndim))) in
+            Stats.draw_gaussian 0.0 sigma in
       let z' = Array.make ndim 0.0 in 
         for i = 0 to ndim - 1 do 
           z'.(i) <- z.(i) +. d*.(y.(i) -. x.(i))
